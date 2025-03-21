@@ -1,0 +1,3 @@
+[submodule "leo-program"]
+	path = leo-program
+	url = https://github.com/henrikkv/poker
