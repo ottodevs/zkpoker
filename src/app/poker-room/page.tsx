@@ -3,9 +3,43 @@
 import Image from "next/image";
 import Link from "next/link";
 import PokerControl from "@/components/PokerControl";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 
 export default function PokerRoom() {
+  const searchParams = useSearchParams();
+  
+  // Player data from URL params
+  const [playerData, setPlayerData] = useState({
+    avatarIndex: 0,
+    chips: 2300,
+    blinds: "100/200"
+  });
+  
+  // Parse URL parameters on load
+  useEffect(() => {
+    if (searchParams) {
+      const avatarIndex = parseInt(searchParams.get('avatar') || '0', 10);
+      const chips = parseInt(searchParams.get('chips') || '2300', 10);
+      const blinds = searchParams.get('blinds') || '100/200';
+      
+      console.log("Poker room received params:", { avatarIndex, chips, blinds });
+      console.log("Avatar should be:", `/avatar${avatarIndex + 1}.png`);
+      
+      setPlayerData({
+        avatarIndex,
+        chips,
+        blinds
+      });
+    }
+  }, [searchParams]);
+  
+  // Log when playerData changes
+  useEffect(() => {
+    console.log("Player data updated:", playerData);
+    console.log("Rendering PokerControl with avatarIndex:", playerData.avatarIndex);
+  }, [playerData]);
+  
   // Function to handle button actions with console logs
   const handleAction = (action: string) => {
     console.log(`Player action: ${action}`);
@@ -65,9 +99,9 @@ export default function PokerRoom() {
          }}>
       
       {/* Game information */}
-      <div className="absolute top-5 left-5 w-[162px] p-6 bg-gradient-to-b from-[#21516f] to-[#153f59] rounded-[35px] outline outline-[5px] outline-offset-[-5px] outline-[#3c5e6d] inline-flex flex-col justify-center items-start gap-2">
+      <div className="absolute top-5 left-5 w-[162px] p-6 bg-gradient-to-b from-[#21516f] to-[#153f59] rounded-[35px]  outline-[5px] outline-offset-[-5px] outline-[#3c5e6d] inline-flex flex-col justify-center items-start gap-2">
         <div className="self-stretch justify-start text-white text-base font-bold font-['Exo']">BLINDS</div>
-        <div className="self-stretch justify-start text-white text-2xl font-bold font-['Exo']">100/200</div>
+        <div className="self-stretch justify-start text-white text-2xl font-bold font-['Exo']">{playerData.blinds}</div>
         <div className="self-stretch justify-start text-white text-base font-bold font-['Exo']">TIME</div>
         <div className="self-stretch justify-start text-white text-2xl font-bold font-['Exo']">9:41</div>
       </div>
@@ -160,7 +194,7 @@ export default function PokerRoom() {
       </div>
       
       {/* Poker Controls */}
-      <PokerControl onAction={handleAction} />
+      <PokerControl onAction={handleAction} playerChips={playerData.chips} avatarIndex={playerData.avatarIndex} />
       
       {/* Add styles to handle responsive behavior */}
       <style jsx global>{`
