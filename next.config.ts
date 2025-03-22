@@ -1,21 +1,35 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
-  reactStrictMode: true,
-  webpack: (config, { isServer, dev }) => {
-    // Add support for Web Workers
-    config.module.rules.push({
-      test: /\.worker\.ts$/,
-      use: { loader: 'worker-loader' },
-    });
+    reactStrictMode: true,
+    async headers() {
+        return [
+            {
+                source: '/:path*',
+                headers: [
+                    {
+                        key: 'Cross-Origin-Opener-Policy',
+                        value: 'same-origin',
+                    },
+                    {
+                        key: 'Cross-Origin-Embedder-Policy',
+                        value: 'require-corp',
+                    },
+                ],
+            },
+        ]
+    },
+    webpack: config => {
+        // fix top level await issues with provable sdk
+        config.target = typeof config.target === 'string' ? config.target : ['web', 'es2022']
 
-    // Fix issues with Web Workers in Next.js
-    if (!isServer) {
-      config.output.globalObject = 'self';
-    }
+        // minify the code and prevent issues with workers source maps
+        config.optimization = {
+            ...config.optimization,
+            minimize: true,
+        }
+        return config
+    },
+}
 
-    return config;
-  },
-};
-
-export default nextConfig;
+export default nextConfig
