@@ -151,11 +151,7 @@ export default function BuyInOverlay({
                   unoptimized
                   priority
                 />
-                {selectedAvatar === index && (
-                  <div className="absolute bottom-0 left-0 right-0 bg-[#4df0b3] text-black text-xs font-bold text-center py-1">
-                    SELECTED
-                  </div>
-                )}
+              
               </button>
             ))}
           </div>
@@ -173,7 +169,7 @@ export default function BuyInOverlay({
             <div className="text-white text-lg font-bold">Balance: </div>
             <div className="flex items-center gap-1.5 ml-1">
               <div className="w-[22.7px] h-[22.7px] bg-[#121212] rounded-full flex items-center justify-center">
-                <Image src="/aleo-icon.svg" alt="Aleo" width={12} height={13} style={{ height: "auto" }} />
+                <Image src="/aleo-icon.svg" alt="Aleo" width={12} height={13} style={{ height: "auto", width: "auto" }} />
               </div>
               <div className="text-white text-lg font-bold">1,000 Aleo</div>
             </div>
@@ -181,9 +177,9 @@ export default function BuyInOverlay({
           
           {/* Buy-in amount section */}
           <div className="mb-8">
-            <div className="flex justify-between mb-4">
+            <div className="flex justify-between mb-8">
               <div className="text-white/70 text-base font-bold">Buy-in Amount</div>
-              <div className="w-52 h-12 px-6 py-2.5 bg-white/5 rounded-[13px] outline outline-2 outline-[#e7e7e7]/20 flex items-center justify-end">
+              <div className="w-52 h-12 px-6 py-2.5 bg-white/5 rounded-[13px]  outline-2 outline-[#e7e7e7]/20 flex items-center justify-end">
                 <input
                   type="text"
                   value={buyInAmount}
@@ -197,7 +193,7 @@ export default function BuyInOverlay({
             <div className="flex items-center mb-16">
               {/* MIN button */}
               <button 
-                className="px-[38px] py-2.5 bg-white/5 rounded-[13px] outline outline-2 outline-[#e7e7e7]/20 flex flex-col items-center cursor-pointer hover:bg-white/10 transition-colors"
+                className="px-[38px] py-2.5 bg-white/5 rounded-[13px]  outline-2 outline-[#e7e7e7]/20 flex flex-col items-center cursor-pointer hover:bg-white/10 transition-colors"
                 onClick={handleMinClick}
               >
                 <div className="text-white text-lg font-bold">MIN</div>
@@ -234,7 +230,7 @@ export default function BuyInOverlay({
               
               {/* MAX button */}
               <button 
-                className="px-[38px] py-2.5 bg-white/5 rounded-[13px] outline outline-2 outline-[#e7e7e7]/20 flex flex-col items-center cursor-pointer hover:bg-white/10 transition-colors"
+                className="px-[38px] py-2.5 bg-white/5 rounded-[13px]  outline-2 outline-[#e7e7e7]/20 flex flex-col items-center cursor-pointer hover:bg-white/10 transition-colors"
                 onClick={handleMaxClick}
               >
                 <div className="text-white text-lg font-bold">MAX</div>

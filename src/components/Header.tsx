@@ -30,7 +30,7 @@ export default function Header({ onToggleMode }: HeaderProps) {
             <path d="M42 51H10C5.02944 51 1 46.9706 1.00001 42L1.00006 9.99998C1.00007 5.02942 5.02951 0.999996 10.0001 0.999996H42C46.9706 0.999996 51 5.02944 51 10V42C51 46.9706 46.9706 51 42 51Z" stroke="#253E5C" strokeWidth="2"/>
           </svg>
           <button className="z-10">
-            <Image src="/settings-button.svg" alt="Settings" width={28} height={28} />
+            <Image src="/settings-button.svg" alt="Settings" width={28} height={28} style={{ height: "auto", width: "auto" }} />
           </button>
         </div>
         
@@ -65,7 +65,7 @@ export default function Header({ onToggleMode }: HeaderProps) {
         
         {/* Mental Poker Logo (true size) */}
         <div className="flex items-center">
-          <Image src="/top-logo.svg" alt="Mental Poker" width={230} height={230} />
+          <Image src="/top-logo.svg" alt="Mental Poker" width={230} height={230} style={{ height: "auto", width: "auto" }} />
         </div>
       </div>
       
@@ -76,7 +76,7 @@ export default function Header({ onToggleMode }: HeaderProps) {
             <path d="M42 51H10C5.02944 51 1 46.9706 1.00001 42L1.00006 9.99998C1.00007 5.02942 5.02951 0.999996 10.0001 0.999996H42C46.9706 0.999996 51 5.02944 51 10V42C51 46.9706 46.9706 51 42 51Z" stroke="#253E5C" strokeWidth="2"/>
           </svg>
           <button className="z-10">
-            <Image src="/speaker-button.svg" alt="Speaker" width={28} height={28} />
+            <Image src="/speaker-button.svg" alt="Speaker" width={28} height={28} style={{ height: "auto", width: "auto" }} />
           </button>
         </div>
         

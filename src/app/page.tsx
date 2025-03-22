@@ -140,6 +140,7 @@ export default function Dashboard() {
                           width={172} 
                           height={108}
                           priority
+                          style={{ height: "auto", width: "auto" }}
                         />
                       </div>
                     </div>
@@ -157,6 +158,7 @@ export default function Dashboard() {
                   alt="Mental Poker" 
                   width={268} 
                   height={30}
+                  style={{ height: "auto", width: "auto" }}
                 />
               </div>
               
@@ -187,10 +189,10 @@ export default function Dashboard() {
 
           {/* Floating Sponsor Logos */}
           <div className="absolute bottom-12 left-7/12 transform -translate-x-1/2 flex justify-center items-center gap-16 flex-wrap">
-            <Image src="/provable-logo.svg" alt="Provable" width={120} height={40} />
-            <Image src="/aleo-logo.svg" alt="Aleo" width={100} height={30} />
-            <Image src="/ethglobal-logo.svg" alt="ETHGlobal" width={120} height={40} />
-            <Image src="/cursor-logo.svg" alt="Cursor" width={100} height={30} />
+            <Image src="/provable-logo.svg" alt="Provable" width={120} height={40} style={{ height: "auto", width: "auto" }} />
+            <Image src="/aleo-logo.svg" alt="Aleo" width={100} height={30} style={{ height: "auto", width: "auto"  }} />
+            <Image src="/ethglobal-logo.svg" alt="ETHGlobal" width={120} height={40} style={{ height: "auto", width: "auto" }} />
+            <Image src="/cursor-logo.svg" alt="Cursor" width={100} height={30} style={{ height: "auto", width: "auto" }} />
           </div>
         </div>
       </div>
