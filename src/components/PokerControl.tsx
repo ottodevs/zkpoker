@@ -259,7 +259,7 @@ export default function PokerControl({ onAction, playerChips = 2300, avatarIndex
             <div className="relative">
               {/* Make the gold ring more prominent */}
               <div className="absolute inset-0 rounded-full shadow-[0_0_18px_12px_rgba(255,215,0,0.7)] blur-md"></div>
-              <Image src="/user-ring.svg" alt="Player" width={120} height={120} className="relative z-10" />
+              <Image src="/user-ring.svg" alt="Player" width={120} height={120} className="relative z-10 w-[120px] h-[120px]" />
               <div className="absolute top-[4px] left-[4px] w-[108px] h-[108px] rounded-full overflow-hidden ">
                 <Image 
                   src={`/avatar${avatarIndex + 1}.png`}

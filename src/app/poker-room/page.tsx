@@ -108,7 +108,7 @@ export default function PokerRoom() {
       
       {/* Poker table - positioned 100px above the control panel */}
       <div className="absolute bottom-[415px] left-1/2 transform -translate-x-1/2">
-        <div className="poker-table-container" style={{ minWidth: "1047px", width: "1047px" }}>
+        <div className="poker-table-container" style={{ minWidth: "1047px", width: "1047px", height: "auto" }}>
           <Image 
             src="/poker-table.svg" 
             alt="Poker Table" 
