@@ -1,51 +1,61 @@
 {
-  "name": "zkpoker",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
-  },
-  "dependencies": {
-    "@demox-labs/aleo-wallet-adapter-base": "0.0.22",
-    "@demox-labs/aleo-wallet-adapter-leo": "0.0.24",
-    "@demox-labs/aleo-wallet-adapter-react": "0.0.21",
-    "@demox-labs/aleo-wallet-adapter-reactui": "0.0.35",
-    "@types/howler": "2.2.12",
-    "howler": "2.2.4",
-    "@provablehq/sdk": "0.8.6",
-    "@tailwindcss/postcss": "4.0.15",
-    "clsx": "2.1.1",
-    "next": "15.2.3",
-    "react": "19.0.0",
-    "react-dom": "19.0.0",
-    "tailwind-merge": "3.0.2"
-  },
-  "devDependencies": {
-    "@eslint/eslintrc": "3.3.1",
-    "@next/eslint-plugin-next": "15.2.3",
-    "@tailwindcss/postcss": "4.0.15",
-    "@types/node": "22.13.11",
-    "@types/react-dom": "19.0.4",
-    "@types/react": "19.0.12",
-    "autoprefixer": "10.4.21",
-    "eslint-config-next": "15.2.3",
-    "eslint-config-prettier": "10.1.1",
-    "eslint-plugin-react-hooks": "5.2.0",
-    "eslint": "9.23.0",
-    "postcss": "8.5.3",
-    "prettier-plugin-tailwindcss": "0.6.11",
-    "prettier": "3.5.3",
-    "tailwindcss": "4.0.15",
-    "typescript": "5.8.2"
-  },
-  "packageManager": "pnpm@10.6.5+sha512.cdf928fca20832cd59ec53826492b7dc25dc524d4370b6b4adbf65803d32efaa6c1c88147c0ae4e8d579a6c9eec715757b50d4fa35eea179d868eada4ed043af",
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "core-js",
-      "sharp"
-    ]
-  }
+    "name": "zkpoker",
+    "version": "0.1.0",
+    "private": true,
+    "scripts": {
+        "dev": "next dev",
+        "build": "next build",
+        "start": "next start",
+        "lint": "next lint"
+    },
+    "dependencies": {
+        "@demox-labs/aleo-wallet-adapter-base": "0.0.22",
+        "@demox-labs/aleo-wallet-adapter-leo": "0.0.24",
+        "@demox-labs/aleo-wallet-adapter-react": "0.0.21",
+        "@demox-labs/aleo-wallet-adapter-reactui": "0.0.35",
+        "@provablehq/sdk": "0.8.6",
+        "@puzzlehq/sdk": "1.0.3",
+        "@puzzlehq/sdk-core": "1.0.3",
+        "@radix-ui/react-dialog": "1.1.6",
+        "@tailwindcss/postcss": "4.0.15",
+        "@types/howler": "2.2.12",
+        "aleo-adapters": "1.2.1",
+        "aleo-hooks": "1.0.3",
+        "aleo-wallet-adapters": "0.1.5",
+        "clsx": "2.1.1",
+        "howler": "2.2.4",
+        "next": "15.2.3",
+        "next-themes": "0.4.6",
+        "react": "19.0.0",
+        "react-dom": "19.0.0",
+        "react-query": "3.39.3",
+        "react-toastify": "11.0.5",
+        "tailwind-merge": "3.0.2"
+    },
+    "devDependencies": {
+        "@eslint/eslintrc": "3.3.1",
+        "@next/eslint-plugin-next": "15.2.3",
+        "@puzzlehq/types": "1.0.31",
+        "@tailwindcss/postcss": "4.0.15",
+        "@types/node": "22.13.11",
+        "@types/react": "19.0.12",
+        "@types/react-dom": "19.0.4",
+        "autoprefixer": "10.4.21",
+        "eslint": "9.23.0",
+        "eslint-config-next": "15.2.3",
+        "eslint-config-prettier": "10.1.1",
+        "eslint-plugin-react-hooks": "5.2.0",
+        "postcss": "8.5.3",
+        "prettier": "3.5.3",
+        "prettier-plugin-tailwindcss": "0.6.11",
+        "tailwindcss": "4.0.15",
+        "typescript": "5.8.2"
+    },
+    "packageManager": "pnpm@10.6.5+sha512.cdf928fca20832cd59ec53826492b7dc25dc524d4370b6b4adbf65803d32efaa6c1c88147c0ae4e8d579a6c9eec715757b50d4fa35eea179d868eada4ed043af",
+    "pnpm": {
+        "onlyBuiltDependencies": [
+            "core-js",
+            "sharp"
+        ]
+    }
 }

@@ -17,7 +17,13 @@
     - [Game State Management](#game-state-management)
 - [Aleo Smart Contracts](#aleo-smart-contracts)
 - [Architecture](#architecture)
+- [Repository Structure](#repository-structure)
 - [Challenges](#challenges)
+    - [Circuit Complexity](#1-circuit-complexity)
+    - [Multi-Party Protocol Design](#2-multi-party-protocol-design)
+    - [Private Information Management](#3-private-information-management)
+    - [User Experience](#4-user-experience)
+    - [Wallet Integration](#5-wallet-integration)
 - [Getting Started](#getting-started)
     - [Prerequisites](#prerequisites)
     - [Installation](#installation)
@@ -199,7 +205,7 @@ stateDiagram-v2
 
 ## Aleo Smart Contracts
 
-Our implementation consists of four interconnected Aleo programs:
+Our implementation consists of four interconnected Aleo programs, maintained in a separate repository as a Git submodule in the `leo-program` directory. The contracts repository is available at [https://github.com/henrikkv/poker](https://github.com/henrikkv/poker).
 
 ### 1. mental_poker_trifecta.aleo (Main Contract)
 
@@ -290,9 +296,49 @@ The architecture enables:
 3. **Modular Design**: Each contract has a specific responsibility
 4. **Secure Communication**: All on-chain interactions are verifiable and private
 
+## Repository Structure
+
+The ZKPoker project is organized with a clear separation of concerns:
+
+```
+zkpoker/
+├── src/                    # Frontend application source code
+│   ├── app/                # Next.js application routes
+│   ├── components/         # React components
+│   ├── services/           # Service modules (sound, game logic)
+│   └── worker-poker.ts     # Web Worker for Aleo operations
+├── public/                 # Static assets
+│   ├── cards/              # Card images
+│   ├── sounds/             # Game sounds and music
+│   └── *.svg               # UI elements and icons
+├── leo-program/            # Git submodule for Aleo contracts
+│   ├── src/                # Main contract code
+│   ├── imports/            # Dependent contract modules
+│   │   ├── zk_sra_encryption/
+│   │   ├── zk_deck_operations/
+│   │   └── zk_deck_shuffle/
+│   └── build/              # Compiled contract artifacts
+├── deployments.md          # Deployment records and transaction IDs
+└── README.md               # Project documentation
+```
+
+Our contract code is maintained in a separate repository at [https://github.com/henrikkv/poker](https://github.com/henrikkv/poker) and included as a Git submodule in the `leo-program` directory. This separation allows for independent versioning and deployment of the smart contracts.
+
+To clone the repository with the submodule:
+
+```bash
+git clone --recurse-submodules https://github.com/yourusername/zkpoker.git
+```
+
+Or if you've already cloned the repository:
+
+```bash
+git submodule update --init --recursive
+```
+
 ## Challenges
 
-Building a trustless poker platform on Aleo presented several challenges:
+Building a trustless poker platform on Aleo presented several significant challenges:
 
 ### 1. Circuit Complexity
 
@@ -326,6 +372,41 @@ Creating a smooth experience despite blockchain constraints:
 - Handling transaction failures gracefully
 - Providing appropriate feedback during cryptographic operations
 
+### 5. Wallet Integration
+
+Integrating with Aleo wallets presented unique challenges:
+
+- **Limited Wallet Ecosystem**: The Aleo ecosystem is still emerging, with fewer wallet options compared to EVM chains
+- **Adapter Compatibility**: We faced issues with version compatibility in the `@demox-labs/aleo-wallet-adapter` packages
+- **Transaction Signing**: Implementing proper request handling for transaction signing and decryption permissions
+- **Error Handling**: Working around unpredictable wallet behavior during connection and transaction signing
+- **Web Worker Integration**: Coordinating between the main thread and web workers for wallet operations
+
+To overcome these challenges, we implemented:
+
+```javascript
+// Custom wallet connection handling with fallbacks
+useEffect(() => {
+    if (!connected && publicKey) {
+        console.log('Wallet not connected. Please connect your wallet to play.')
+        setGameNotification({
+            message: 'Please connect your wallet to play',
+            type: 'error',
+        })
+    }
+}, [connected, publicKey])
+
+// Web Worker communication for blockchain operations
+if (aleoWorker) {
+    aleoWorker.postMessage({
+        type: 'create_game',
+        gameId,
+        privateKey,
+        buyIn: playerData.chips,
+    })
+}
+```
+
 ## Getting Started
 
 ### Prerequisites
@@ -337,10 +418,10 @@ Creating a smooth experience despite blockchain constraints:
 
 ### Installation
 
-1. Clone the repository
+1. Clone the repository with submodules
 
 ```bash
-git clone https://github.com/yourusername/zkpoker.git
+git clone --recurse-submodules https://github.com/yourusername/zkpoker.git
 cd zkpoker
 ```
 
@@ -420,6 +501,7 @@ For detailed deployment information, see our [deployments.md](deployments.md) fi
 - **ESLint/Prettier**: Code formatting and linting
 - **pnpm**: Fast, disk-efficient package manager
 - **VS Code**: Recommended editor with Leo extensions
+- **Git Submodules**: Manage contract code separately from frontend
 
 <div align="center">
   <div style="display: flex; justify-content: center; gap: 20px;">
@@ -480,6 +562,7 @@ gantt
 - **Optimized Circuits**: Further reduction in ZK circuit complexity
 - **Improved Tutorial**: Step-by-step onboarding for new players
 - **Enhanced Security**: Additional measures to prevent collusion and cheating
+- **Wallet Compatibility**: Support for additional Aleo wallets as they become available
 
 <div align="center">
   <img src="public/blue-chip.svg" alt="Blue Chip" width="50" />
@@ -499,9 +582,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Acknowledgments
 
 - The Aleo team for their incredible platform and tools
-- [Demox Labs](https://www.demoxlabs.xyz/) for their AmarAleo testnet infrastructure
+- [Demox Labs](https://www.demoxlabs.xyz/) for their AmarAleo testnet infrastructure and wallet adapter
 - EthGlobal Trifecta 2024 for the opportunity to showcase this project
 - The mental poker research community for laying the cryptographic foundations
+- [Puzzle Wallet](https://github.com/puzzlehq) team for their support with wallet compatibility issues
 
 ---
 
