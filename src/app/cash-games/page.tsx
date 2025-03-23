@@ -2,11 +2,12 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Header from '@/components/Header';
 import BuyInOverlay from '@/components/BuyInOverlay';
 import { Exo } from 'next/font/google';
+import soundService from '@/services/SoundService';
 
 const exo = Exo({
   subsets: ['latin'],
@@ -39,12 +40,27 @@ export default function CashGames() {
   const [showBuyIn, setShowBuyIn] = useState(false);
   const [selectedGame, setSelectedGame] = useState<(typeof CASH_GAMES)[0] | null>(null);
 
+  // Initialize background music when the component mounts
+  useEffect(() => {
+    soundService.preloadSounds();
+    soundService.playMusic('LOBBY');
+    
+    // Cleanup on unmount
+    return () => {
+      soundService.stopMusic();
+    };
+  }, []);
+
   const handleJoinClick = (game: (typeof CASH_GAMES)[0]) => {
+    soundService.playSfx('BUTTON_CLICK');
     setSelectedGame(game);
     setShowBuyIn(true);
   };
 
   const handleBuyIn = (avatarIndex: number, amount: number) => {
+    // Play chip sound
+    soundService.playSfx('CHIP_STACK');
+    
     // Close the overlay
     setShowBuyIn(false);
     
@@ -71,12 +87,14 @@ export default function CashGames() {
             <Link 
               href="/"
               className="flex items-center px-[18px] py-[11px] text-white text-2xl font-bold hover:bg-white/5 rounded-[13px]"
+              onClick={() => soundService.playSfx('BUTTON_CLICK')}
             >
               HOME
             </Link>
             <Link 
               href="/tournaments"
               className="flex items-center px-[18px] py-[11px] text-white text-2xl font-bold hover:bg-white/5 rounded-[13px]"
+              onClick={() => soundService.playSfx('BUTTON_CLICK')}
             >
               TOURNAMENTS
             </Link>
@@ -136,7 +154,10 @@ export default function CashGames() {
       {selectedGame && (
         <BuyInOverlay
           isOpen={showBuyIn}
-          onClose={() => setShowBuyIn(false)}
+          onClose={() => {
+            soundService.playSfx('BUTTON_CLICK');
+            setShowBuyIn(false);
+          }}
           onBuyIn={handleBuyIn}
           minBuyIn={selectedGame.minBuyIn}
           maxBuyIn={selectedGame.maxBuyIn}
