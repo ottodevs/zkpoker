@@ -36,8 +36,8 @@ interface _PlayerState {
 
 export default function PokerRoom() {
     const searchParams = useSearchParams()
-    const gameId = parseInt(searchParams.get('gameId') || '1', 10)
-    const isCreator = searchParams.get('creator') === 'true'
+    const gameId = parseInt(searchParams?.get('gameId') || '1', 10)
+    const isCreator = searchParams?.get('creator') === 'true'
 
     const [account, setAccount] = useState<string | null>(null)
     const [gameState, setGameState] = useState<{
@@ -79,6 +79,277 @@ export default function PokerRoom() {
     const [fetchInterval, setFetchInterval] = useState<NodeJS.Timeout | null>(null)
 
     useEffect(() => {
+        // Helper function to determine if it's the current player's turn
+        const determineIfPlayerTurn = (
+            stateValue: number,
+            privateKey: string,
+            gameState: Record<string, unknown>,
+        ): boolean => {
+            // This is a simplified example - implement based on actual game rules
+            const playerTurn = determinePlayerTurn(stateValue)
+
+            // Determine which player the current user is
+            const isPlayer1 = isPlayerOne(privateKey, gameState)
+            const isPlayer2 = isPlayerTwo(privateKey, gameState)
+            const isPlayer3 = isPlayerThree(privateKey, gameState)
+
+            return (playerTurn === 1 && isPlayer1) || (playerTurn === 2 && isPlayer2) || (playerTurn === 3 && isPlayer3)
+        }
+
+        // Helper functions to determine which player the current user is
+        const isPlayerOne = (_privateKey: string, _gameState: unknown): boolean => {
+            // In a real implementation, check if the address derived from the private key matches player1
+            return isCreator // Simplified for this example
+        }
+
+        // Helper function to determine the current player's turn based on state
+        const determinePlayerTurn = (stateValue: number): number => {
+            // Map state values to player turns
+            // This is a simplified example - implement based on actual game rules
+            if (stateValue >= 5 && stateValue <= 7) {
+                return stateValue - 4 // States 5, 6, 7 correspond to players 1, 2, 3
+            } else if (stateValue >= 11 && stateValue <= 13) {
+                return stateValue - 10 // States 11, 12, 13 correspond to players 1, 2, 3
+            } else if (stateValue >= 17 && stateValue <= 19) {
+                return stateValue - 16 // States 17, 18, 19 correspond to players 1, 2, 3
+            } else if (stateValue >= 23 && stateValue <= 25) {
+                return stateValue - 22 // States 23, 24, 25 correspond to players 1, 2, 3
+            }
+
+            return 1 // Default to player 1
+        }
+
+        // Handle game state update from the blockchain
+        const handleGameStateUpdate = (result: { error?: string; state?: Record<string, string> }) => {
+            if (result.error) {
+                logError(`Error getting game state: ${result.error}`)
+                return
+            }
+
+            if (!result.state) {
+                logInfo('Game state not found')
+                return
+            }
+
+            // Parse and update the game state
+            const state = result.state
+
+            // Update players based on addresses in the game
+            try {
+                // ... example parsing logic (implement based on actual structure)
+                const player1Address = state.player1
+                const player2Address = state.player2
+                const player3Address = state.player3
+
+                const currentStateValue = parseInt(state.state, 10)
+
+                setPlayers(prev => {
+                    const newPlayers = { ...prev }
+
+                    if (
+                        player1Address &&
+                        player1Address !== 'aleo1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq3ljyzc'
+                    ) {
+                        newPlayers[1] = {
+                            address:
+                                account && isAddressMatch(player1Address, account)
+                                    ? 'You (Player 1)'
+                                    : `Player 1 (${truncateAddress(player1Address)})`,
+                            chips: 1000, // Will be updated from chips state
+                        }
+                    }
+
+                    if (
+                        player2Address &&
+                        player2Address !== 'aleo1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq3ljyzc'
+                    ) {
+                        newPlayers[2] = {
+                            address:
+                                account && isAddressMatch(player2Address, account)
+                                    ? 'You (Player 2)'
+                                    : `Player 2 (${truncateAddress(player2Address)})`,
+                            chips: 1000, // Will be updated from chips state
+                        }
+                    }
+
+                    if (
+                        player3Address &&
+                        player3Address !== 'aleo1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq3ljyzc'
+                    ) {
+                        newPlayers[3] = {
+                            address:
+                                account && isAddressMatch(player3Address, account)
+                                    ? 'You (Player 3)'
+                                    : `Player 3 (${truncateAddress(player3Address)})`,
+                            chips: 1000, // Will be updated from chips state
+                        }
+                    }
+
+                    return newPlayers
+                })
+
+                // Update turn information
+                const isPlayerTurn = determineIfPlayerTurn(currentStateValue, account as string, state)
+
+                setGameState(prev => ({
+                    ...prev,
+                    playerTurn: determinePlayerTurn(currentStateValue),
+                    isPlayerTurn: isPlayerTurn,
+                }))
+            } catch (error) {
+                logError('Error parsing game state', error)
+            }
+        }
+
+        // Handle chips state update from the blockchain
+        const handleChipsStateUpdate = (result: { error?: string; chips?: Record<string, string> }) => {
+            if (result.error || !result.chips) {
+                return
+            }
+
+            try {
+                const chips = result.chips
+
+                // Update player chips
+                const player1Chips = parseInt(chips.player1, 10)
+                const player2Chips = parseInt(chips.player2, 10)
+                const player3Chips = parseInt(chips.player3, 10)
+
+                // Calculate pot from bets
+                const player1Bet = parseInt(chips.player1_bet, 10)
+                const player2Bet = parseInt(chips.player2_bet, 10)
+                const player3Bet = parseInt(chips.player3_bet, 10)
+                const totalPot = player1Bet + player2Bet + player3Bet
+
+                // Update players chips
+                setPlayers(prev => {
+                    const newPlayers = { ...prev }
+
+                    if (newPlayers[1]) {
+                        newPlayers[1] = { ...newPlayers[1], chips: player1Chips }
+                    }
+
+                    if (newPlayers[2]) {
+                        newPlayers[2] = { ...newPlayers[2], chips: player2Chips }
+                    }
+
+                    if (newPlayers[3]) {
+                        newPlayers[3] = { ...newPlayers[3], chips: player3Chips }
+                    }
+
+                    return newPlayers
+                })
+
+                // Update game state
+                setGameState(prev => {
+                    // Determine which player the current user is to set their chips
+                    let playerChips = prev.playerChips
+
+                    // This is simplistic - in a real implementation, determine which player the current user is
+                    if (isPlayerOne(account as string, gameInfo)) {
+                        playerChips = player1Chips
+                    } else if (isPlayerTwo(account as string, gameInfo)) {
+                        playerChips = player2Chips
+                    } else if (isPlayerThree(account as string, gameInfo)) {
+                        playerChips = player3Chips
+                    }
+
+                    return {
+                        ...prev,
+                        pot: totalPot,
+                        playerChips: playerChips,
+                    }
+                })
+            } catch (error) {
+                logError('Error parsing chips state', error)
+            }
+        }
+
+        // Handle cards state update from the blockchain
+        const handleCardsStateUpdate = (result: { error?: string; cards?: Record<string, unknown> }) => {
+            if (result.error || !result.cards) {
+                return
+            }
+
+            try {
+                const cards = result.cards
+
+                // Process player cards - in real implementation these would be decrypted for viewing
+                const playerCards: [string, string] = ['Ad', 'Jd'] // Default
+
+                // Process community cards
+                const flopCards = cards.flop ? parseCardsFromChain(cards.flop) : []
+                const turnCard = cards.turn ? parseCardFromChain(cards.turn) : null
+                const riverCard = cards.river ? parseCardFromChain(cards.river) : null
+
+                const communityCards = [
+                    ...flopCards,
+                    ...(turnCard ? [turnCard] : []),
+                    ...(riverCard ? [riverCard] : []),
+                ]
+
+                // Update game state with cards
+                setGameState(prev => ({
+                    ...prev,
+                    playerCards,
+                    communityCards,
+                }))
+            } catch (error) {
+                logError('Error parsing cards state', error)
+            }
+        }
+
+        // Fetch game state from the blockchain
+        const fetchGameState = (gameId: number) => {
+            if (!workerRef.current) return
+
+            logAction('Fetch', `Fetching game state for game ${gameId}`)
+
+            // Fetch game state
+            workerRef.current.postMessage({
+                action: 'get_game_state',
+                data: {
+                    gameId,
+                    network,
+                },
+            })
+
+            // Fetch chips state
+            workerRef.current.postMessage({
+                action: 'get_chips_state',
+                data: {
+                    gameId,
+                    network,
+                },
+            })
+
+            // Fetch cards state
+            workerRef.current.postMessage({
+                action: 'get_cards_state',
+                data: {
+                    gameId,
+                    network,
+                },
+            })
+        }
+
+        // Start periodic fetching of game state
+        const startGameStateFetching = (gameId: number) => {
+            if (fetchInterval) {
+                clearInterval(fetchInterval)
+            }
+
+            // Fetch initial state
+            fetchGameState(gameId)
+
+            // Set up interval to fetch every 5 seconds
+            const interval = setInterval(() => {
+                fetchGameState(gameId)
+            }, 5000)
+
+            setFetchInterval(interval)
+        }
+
         // Initialize the worker
         logInit(`Initializing poker room for game ${gameId}, creator: ${isCreator}`)
 
@@ -86,7 +357,7 @@ export default function PokerRoom() {
             try {
                 logInit('Creating worker')
                 // Create the worker using a simple JS file for compatibility
-                workerRef.current = new Worker(new URL('../pokerWorker.js', import.meta.url))
+                workerRef.current = new Worker(new URL('../../pokerWorker.js', import.meta.url))
 
                 workerRef.current.onmessage = event => {
                     const { type, result } = event.data
@@ -235,234 +506,7 @@ export default function PokerRoom() {
                 clearInterval(fetchInterval)
             }
         }
-    }, [isCreator, gameId])
-
-    // Start periodic fetching of game state
-    const startGameStateFetching = (gameId: number) => {
-        if (fetchInterval) {
-            clearInterval(fetchInterval)
-        }
-
-        // Fetch initial state
-        fetchGameState(gameId)
-
-        // Set up interval to fetch every 5 seconds
-        const interval = setInterval(() => {
-            fetchGameState(gameId)
-        }, 5000)
-
-        setFetchInterval(interval)
-    }
-
-    // Fetch game state from the blockchain
-    const fetchGameState = (gameId: number) => {
-        if (!workerRef.current) return
-
-        logAction('Fetch', `Fetching game state for game ${gameId}`)
-
-        // Fetch game state
-        workerRef.current.postMessage({
-            action: 'get_game_state',
-            data: {
-                gameId,
-                network,
-            },
-        })
-
-        // Fetch chips state
-        workerRef.current.postMessage({
-            action: 'get_chips_state',
-            data: {
-                gameId,
-                network,
-            },
-        })
-
-        // Fetch cards state
-        workerRef.current.postMessage({
-            action: 'get_cards_state',
-            data: {
-                gameId,
-                network,
-            },
-        })
-    }
-
-    // Handle game state update from the blockchain
-    const handleGameStateUpdate = (result: { error?: string; state?: Record<string, string> }) => {
-        if (result.error) {
-            logError(`Error getting game state: ${result.error}`)
-            return
-        }
-
-        if (!result.state) {
-            logInfo('Game state not found')
-            return
-        }
-
-        // Parse and update the game state
-        const state = result.state
-
-        // Update players based on addresses in the game
-        try {
-            // ... example parsing logic (implement based on actual structure)
-            const player1Address = state.player1
-            const player2Address = state.player2
-            const player3Address = state.player3
-
-            const currentStateValue = parseInt(state.state, 10)
-
-            setPlayers(prev => {
-                const newPlayers = { ...prev }
-
-                if (
-                    player1Address &&
-                    player1Address !== 'aleo1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq3ljyzc'
-                ) {
-                    newPlayers[1] = {
-                        address:
-                            account && isAddressMatch(player1Address, account)
-                                ? 'You (Player 1)'
-                                : `Player 1 (${truncateAddress(player1Address)})`,
-                        chips: 1000, // Will be updated from chips state
-                    }
-                }
-
-                if (
-                    player2Address &&
-                    player2Address !== 'aleo1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq3ljyzc'
-                ) {
-                    newPlayers[2] = {
-                        address:
-                            account && isAddressMatch(player2Address, account)
-                                ? 'You (Player 2)'
-                                : `Player 2 (${truncateAddress(player2Address)})`,
-                        chips: 1000, // Will be updated from chips state
-                    }
-                }
-
-                if (
-                    player3Address &&
-                    player3Address !== 'aleo1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq3ljyzc'
-                ) {
-                    newPlayers[3] = {
-                        address:
-                            account && isAddressMatch(player3Address, account)
-                                ? 'You (Player 3)'
-                                : `Player 3 (${truncateAddress(player3Address)})`,
-                        chips: 1000, // Will be updated from chips state
-                    }
-                }
-
-                return newPlayers
-            })
-
-            // Update turn information
-            const isPlayerTurn = determineIfPlayerTurn(currentStateValue, account as string, state)
-
-            setGameState(prev => ({
-                ...prev,
-                playerTurn: determinePlayerTurn(currentStateValue),
-                isPlayerTurn: isPlayerTurn,
-            }))
-        } catch (error) {
-            logError('Error parsing game state', error)
-        }
-    }
-
-    // Handle chips state update from the blockchain
-    const handleChipsStateUpdate = (result: { error?: string; chips?: Record<string, string> }) => {
-        if (result.error || !result.chips) {
-            return
-        }
-
-        try {
-            const chips = result.chips
-
-            // Update player chips
-            const player1Chips = parseInt(chips.player1, 10)
-            const player2Chips = parseInt(chips.player2, 10)
-            const player3Chips = parseInt(chips.player3, 10)
-
-            // Calculate pot from bets
-            const player1Bet = parseInt(chips.player1_bet, 10)
-            const player2Bet = parseInt(chips.player2_bet, 10)
-            const player3Bet = parseInt(chips.player3_bet, 10)
-            const totalPot = player1Bet + player2Bet + player3Bet
-
-            // Update players chips
-            setPlayers(prev => {
-                const newPlayers = { ...prev }
-
-                if (newPlayers[1]) {
-                    newPlayers[1] = { ...newPlayers[1], chips: player1Chips }
-                }
-
-                if (newPlayers[2]) {
-                    newPlayers[2] = { ...newPlayers[2], chips: player2Chips }
-                }
-
-                if (newPlayers[3]) {
-                    newPlayers[3] = { ...newPlayers[3], chips: player3Chips }
-                }
-
-                return newPlayers
-            })
-
-            // Update game state
-            setGameState(prev => {
-                // Determine which player the current user is to set their chips
-                let playerChips = prev.playerChips
-
-                // This is simplistic - in a real implementation, determine which player the current user is
-                if (isPlayerOne(account as string, gameInfo)) {
-                    playerChips = player1Chips
-                } else if (isPlayerTwo(account as string, gameInfo)) {
-                    playerChips = player2Chips
-                } else if (isPlayerThree(account as string, gameInfo)) {
-                    playerChips = player3Chips
-                }
-
-                return {
-                    ...prev,
-                    pot: totalPot,
-                    playerChips: playerChips,
-                }
-            })
-        } catch (error) {
-            logError('Error parsing chips state', error)
-        }
-    }
-
-    // Handle cards state update from the blockchain
-    const handleCardsStateUpdate = (result: { error?: string; cards?: Record<string, unknown> }) => {
-        if (result.error || !result.cards) {
-            return
-        }
-
-        try {
-            const cards = result.cards
-
-            // Process player cards - in real implementation these would be decrypted for viewing
-            const playerCards: [string, string] = ['Ad', 'Jd'] // Default
-
-            // Process community cards
-            const flopCards = cards.flop ? parseCardsFromChain(cards.flop) : []
-            const turnCard = cards.turn ? parseCardFromChain(cards.turn) : null
-            const riverCard = cards.river ? parseCardFromChain(cards.river) : null
-
-            const communityCards = [...flopCards, ...(turnCard ? [turnCard] : []), ...(riverCard ? [riverCard] : [])]
-
-            // Update game state with cards
-            setGameState(prev => ({
-                ...prev,
-                playerCards,
-                communityCards,
-            }))
-        } catch (error) {
-            logError('Error parsing cards state', error)
-        }
-    }
+    }, [isCreator, gameId, account, gameInfo, network, fetchInterval])
 
     // Function to handle joining the game
     const handleJoinGame = () => {
@@ -502,46 +546,6 @@ export default function PokerRoom() {
         // For now, we'll assume the function exists
         // placeholder implementation
         return false
-    }
-
-    // Helper function to determine the current player's turn based on state
-    const determinePlayerTurn = (stateValue: number): number => {
-        // Map state values to player turns
-        // This is a simplified example - implement based on actual game rules
-        if (stateValue >= 5 && stateValue <= 7) {
-            return stateValue - 4 // States 5, 6, 7 correspond to players 1, 2, 3
-        } else if (stateValue >= 11 && stateValue <= 13) {
-            return stateValue - 10 // States 11, 12, 13 correspond to players 1, 2, 3
-        } else if (stateValue >= 17 && stateValue <= 19) {
-            return stateValue - 16 // States 17, 18, 19 correspond to players 1, 2, 3
-        } else if (stateValue >= 23 && stateValue <= 25) {
-            return stateValue - 22 // States 23, 24, 25 correspond to players 1, 2, 3
-        }
-
-        return 1 // Default to player 1
-    }
-
-    // Helper function to determine if it's the current player's turn
-    const determineIfPlayerTurn = (
-        stateValue: number,
-        privateKey: string,
-        gameState: Record<string, unknown>,
-    ): boolean => {
-        // This is a simplified example - implement based on actual game rules
-        const playerTurn = determinePlayerTurn(stateValue)
-
-        // Determine which player the current user is
-        const isPlayer1 = isPlayerOne(privateKey, gameState)
-        const isPlayer2 = isPlayerTwo(privateKey, gameState)
-        const isPlayer3 = isPlayerThree(privateKey, gameState)
-
-        return (playerTurn === 1 && isPlayer1) || (playerTurn === 2 && isPlayer2) || (playerTurn === 3 && isPlayer3)
-    }
-
-    // Helper functions to determine which player the current user is
-    const isPlayerOne = (_privateKey: string, _gameState: unknown): boolean => {
-        // In a real implementation, check if the address derived from the private key matches player1
-        return isCreator // Simplified for this example
     }
 
     const isPlayerTwo = (_privateKey: string, _gameState: unknown): boolean => {

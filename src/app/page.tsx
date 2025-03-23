@@ -3,10 +3,15 @@
 import BuyInOverlay from '@/components/BuyInOverlay'
 import Header from '@/components/Header'
 import soundService from '@/services/SoundService'
+import { useWallet } from '@demox-labs/aleo-wallet-adapter-react'
 import { Exo } from 'next/font/google'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import aleoLogo from '../../public/aleo-logo.svg'
+import cursorLogo from '../../public/cursor-logo.svg'
+import ethglobalLogo from '../../public/ethglobal-logo.svg'
+import provableLogo from '../../public/provable-logo.svg'
 
 const exo = Exo({
     subsets: ['latin'],
@@ -59,6 +64,7 @@ const JoinButtonBg = () => (
 
 export default function Dashboard() {
     const router = useRouter()
+    const { connected } = useWallet()
     const [hyperTurbo, setHyperTurbo] = useState(true)
     const [currentView, setCurrentView] = useState<'home' | 'tournaments' | 'cash-games'>('home')
     const [showBuyIn, setShowBuyIn] = useState(false)
@@ -87,7 +93,41 @@ export default function Dashboard() {
         }
     }, [])
 
+    // Actualizar useEffect para que verifique la conexión de la wallet
+    useEffect(() => {
+        // Precargar efectos de sonido del juego
+        soundService.preloadLobbyMusic()
+
+        // Verificar si el usuario está intentando unirse a una mesa sin estar conectado
+        const handleJoinGameWithoutWallet = (e: MouseEvent) => {
+            if (!connected && e.target && (e.target as Element).closest('[data-action="join-game"]')) {
+                e.preventDefault()
+                e.stopPropagation()
+
+                // Mostrar alerta
+                alert('Please connect your wallet before joining a game.')
+
+                // No permitir la navegación
+                return false
+            }
+        }
+
+        // Agregar listener para capturar clicks en botones de unirse a juego
+        document.addEventListener('click', handleJoinGameWithoutWallet, true)
+
+        // Cleanup
+        return () => {
+            soundService.stopMusic()
+            document.removeEventListener('click', handleJoinGameWithoutWallet, true)
+        }
+    }, [connected])
+
     const handleJoinClick = (game: (typeof CASH_GAMES)[0]) => {
+        if (!connected) {
+            alert('Please connect your wallet before joining a game.')
+            return
+        }
+
         soundService.playSfx('CLICKFX')
         setSelectedGame(game)
         setShowBuyIn(true)
@@ -143,7 +183,8 @@ export default function Dashboard() {
                                     />
                                     <div
                                         className='absolute top-7 right-8 h-[62px] w-[124.839px] cursor-pointer'
-                                        onClick={() => handleJoinClick(game)}>
+                                        onClick={() => handleJoinClick(game)}
+                                        data-action='join-game'>
                                         <JoinButtonBg />
                                         <div className='absolute inset-0 flex items-center justify-center'>
                                             <span className={`text-xl font-bold text-black ${exo.className}`}>
@@ -175,32 +216,44 @@ export default function Dashboard() {
                             {/* Sponsor Logos */}
                             <div className='absolute -bottom-52 left-1/2 flex w-full max-w-4xl -translate-x-1/2 transform items-center justify-center space-x-4 px-4 md:space-x-8 lg:space-x-16'>
                                 <Image
-                                    src='/provable-logo.svg'
+                                    src={provableLogo}
                                     alt='Provable'
                                     width={120}
                                     height={40}
-                                    className='h-5 w-auto sm:h-6 md:h-8 lg:h-10'
+                                    className='w-auto sm:h-6 md:h-8 lg:h-10'
+                                    loader={({ src, width, quality }) => {
+                                        return `${src}?w=${width}&q=${quality || 75}`
+                                    }}
                                 />
                                 <Image
-                                    src='/aleo-logo.svg'
+                                    src={aleoLogo}
                                     alt='Aleo'
                                     width={100}
                                     height={30}
-                                    className='h-5 w-auto sm:h-6 md:h-7 lg:h-8'
+                                    className='w-auto sm:h-6 md:h-7 lg:h-8'
+                                    loader={({ src, width, quality }) => {
+                                        return `${src}?w=${width}&q=${quality || 75}`
+                                    }}
                                 />
                                 <Image
-                                    src='/ethglobal-logo.svg'
+                                    src={ethglobalLogo}
                                     alt='ETHGlobal'
                                     width={120}
                                     height={40}
-                                    className='h-5 w-auto sm:h-6 md:h-8 lg:h-10'
+                                    className='w-auto sm:h-6 md:h-8 lg:h-10'
+                                    loader={({ src, width, quality }) => {
+                                        return `${src}?w=${width}&q=${quality || 75}`
+                                    }}
                                 />
                                 <Image
-                                    src='/cursor-logo.svg'
+                                    src={cursorLogo}
                                     alt='Cursor'
                                     width={100}
                                     height={30}
-                                    className='h-4 w-auto sm:h-5 md:h-6 lg:h-7'
+                                    className='w-auto sm:h-5 md:h-6 lg:h-7'
+                                    loader={({ src, width, quality }) => {
+                                        return `${src}?w=${width}&q=${quality || 75}`
+                                    }}
                                 />
                             </div>
 
