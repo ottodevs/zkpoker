@@ -65,7 +65,7 @@ Most existing web3 poker solutions still rely on centralized components for card
 - **Responsive Design**: Play on any device with adaptive layout
 
 <div align="center">
-  <img src="public/pokerback-ground.png" alt="ZKPoker Background" width="600" />
+  <img src="public/table.jpg" alt="ZKPoker Background" width="600" />
 </div>
 
 ## How It Works
@@ -506,9 +506,9 @@ For detailed deployment information, see our [deployments.md](deployments.md) fi
 <div align="center">
   <div style="display: flex; justify-content: center; gap: 20px;">
     <img src="public/cards/Ah.svg" alt="Ace of Hearts" width="60" />
-    <img src="public/cards/Kc.svg" alt="King of Clubs" width="60" />
-    <img src="public/cards/Qd.svg" alt="Queen of Diamonds" width="60" />
-    <img src="public/cards/Js.svg" alt="Jack of Spades" width="60" />
+    <img src="public/cards/13c.svg" alt="King of Clubs" width="60" />
+    <img src="public/cards/12d.svg" alt="Queen of Diamonds" width="60" />
+    <img src="public/cards/11s.svg" alt="Jack of Spades" width="60" />
   </div>
 </div>
 
