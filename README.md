@@ -31,12 +31,15 @@
 - [Deployments](#deployments)
 - [Tech Stack](#tech-stack)
 - [Future Roadmap](#future-roadmap)
+- [ETHGlobal Submission](#ethglobal-submission)
 - [Contributing](#contributing)
 - [License](#license)
 - [Acknowledgments](#acknowledgments)
 
 <div align="center">
   <p><em>EthGlobal Trifecta 2024 Hackathon - ZK Track Submission</em></p>
+  <img src="public/ethglobal-logo.svg" alt="EthGlobal Logo" width="200" />
+  <img src="public/built-with-aleo.svg" alt="Built with Aleo" width="200" />
 </div>
 
 ## Overview
@@ -49,10 +52,18 @@ Most existing web3 poker solutions still rely on centralized components for card
   <img src="public/poker-table.svg" alt="ZKPoker Table" width="600" />
 </div>
 
+<div align="right">
+  <a href="#top">Back to Top ↑</a>
+</div>
+
 ## Demo
 
 - **Live Demo**: [https://zkpoker.vercel.app](https://zkpoker.vercel.app)
 - **Video Demo**: [Watch on Loom](https://www.loom.com/share/1d3ee014b3d44503bcee0f3fa8351f83?sid=df3c18d1-9c54-4628-a665-1a570349cba3)
+
+<div align="right">
+  <a href="#top">Back to Top ↑</a>
+</div>
 
 ## Features
 
@@ -66,6 +77,10 @@ Most existing web3 poker solutions still rely on centralized components for card
 
 <div align="center">
   <img src="public/table.jpg" alt="ZKPoker Background" width="600" />
+</div>
+
+<div align="right">
+  <a href="#top">Back to Top ↑</a>
 </div>
 
 ## How It Works
@@ -93,6 +108,10 @@ flowchart TD
     L --> M[New Hand]
     M -->|Next Round| B
 ```
+
+<div align="right">
+  <a href="#top">Back to Top ↑</a>
+</div>
 
 ## Mental Poker Implementation
 
@@ -132,6 +151,10 @@ sequenceDiagram
     BC->>BC: Decrypt C'' = C'' ⊕ K₁ ⊕ K₂ = C
 ```
 
+<div align="right">
+  <a href="#top">Back to Top ↑</a>
+</div>
+
 ### Secure Deck Shuffling
 
 We implement a secure shuffling protocol where multiple players participate:
@@ -153,6 +176,10 @@ transition full_shuffle(
     return shuffled_deck;
 }
 ```
+
+<div align="right">
+  <a href="#top">Back to Top ↑</a>
+</div>
 
 ### Game State Management
 
@@ -203,6 +230,10 @@ stateDiagram-v2
     RiverBetting --> WinnerDetermination: All but one player folds
 ```
 
+<div align="right">
+  <a href="#top">Back to Top ↑</a>
+</div>
+
 ## Aleo Smart Contracts
 
 Our implementation consists of four interconnected Aleo programs, maintained in a separate repository as a Git submodule in the `leo-program` directory. The contracts repository is available at [https://github.com/henrikkv/poker](https://github.com/henrikkv/poker).
@@ -242,6 +273,10 @@ Implements secure shuffling algorithms:
 
 <div align="center">
   <img src="public/dealer-chip.svg" alt="ZKPoker Dealer Chip" width="80" />
+</div>
+
+<div align="right">
+  <a href="#top">Back to Top ↑</a>
 </div>
 
 ## Architecture
@@ -296,6 +331,10 @@ The architecture enables:
 3. **Modular Design**: Each contract has a specific responsibility
 4. **Secure Communication**: All on-chain interactions are verifiable and private
 
+<div align="right">
+  <a href="#top">Back to Top ↑</a>
+</div>
+
 ## Repository Structure
 
 The ZKPoker project is organized with a clear separation of concerns:
@@ -335,6 +374,10 @@ Or if you've already cloned the repository:
 ```bash
 git submodule update --init --recursive
 ```
+
+<div align="right">
+  <a href="#top">Back to Top ↑</a>
+</div>
 
 ## Challenges
 
@@ -407,6 +450,10 @@ if (aleoWorker) {
 }
 ```
 
+<div align="right">
+  <a href="#top">Back to Top ↑</a>
+</div>
+
 ## Getting Started
 
 ### Prerequisites
@@ -439,6 +486,10 @@ pnpm dev
 
 4. Open [http://localhost:3000](http://localhost:3000) in your browser
 
+<div align="right">
+  <a href="#top">Back to Top ↑</a>
+</div>
+
 ### Smart Contract Deployment
 
 To deploy the Leo programs to Aleo:
@@ -461,9 +512,13 @@ snarkvm build
 leo deploy --recursive -y
 ```
 
+<div align="right">
+  <a href="#top">Back to Top ↑</a>
+</div>
+
 ## Deployments
 
-Our contracts are currently deployed on the Aleo local testnet using [Demox Labs' AmarAleo Chain](https://www.demoxlabs.xyz/). Due to ongoing issues with the public testnet (500 errors during deployment), we're currently focused on local testnet development.
+Our contracts are currently deployed on the Aleo local testnet using [Amareleo Chain](https://amareleo.com/). We use Demox Labs for other purposes, but they are not related to Amareleo.
 
 Here's a summary of our deployment costs to the local testnet:
 
@@ -477,6 +532,10 @@ Here's a summary of our deployment costs to the local testnet:
 | mental_poker_trifecta.aleo | at1rk88g2nwcjzdq75pfnsz0a6xd00gjgewvswzjzkxrzuaczn7qvxqexpmc0 | 46.994400      |
 
 For detailed deployment information, see our [deployments.md](deployments.md) file.
+
+<div align="right">
+  <a href="#top">Back to Top ↑</a>
+</div>
 
 ## Tech Stack
 
@@ -512,27 +571,36 @@ For detailed deployment information, see our [deployments.md](deployments.md) fi
   </div>
 </div>
 
+<div align="right">
+  <a href="#top">Back to Top ↑</a>
+</div>
+
 ## Future Roadmap
 
 ```mermaid
 gantt
     title ZKPoker Development Roadmap
     dateFormat  YYYY-MM-DD
-    section Core Features
-    Complete Texas Hold'em Implementation :2024-07-01, 2024-09-30
-    Public Testnet Deployment            :2024-08-01, 2024-10-15
-    Hand Evaluation Engine               :2024-09-01, 2024-10-30
+    section Completed Features
+    Project Start                         :done, 2025-03-20, 2025-03-20
+    Mental Poker System Implementation    :done, 2025-03-20, 2025-03-22
+    Secure Deck Shuffling                 :done, 2025-03-20, 2025-03-21
+    Hand Evaluation Engine                :done, 2025-03-21, 2025-03-22
+
+    section In Progress
+    Complete Texas Hold'em Implementation :active, 2025-03-22, 2025-04-30
+    Public Testnet Deployment            :crit, active, 2025-03-23, 2025-05-15
 
     section Game Variants
-    Sit-n-Go Tournaments                 :2024-10-01, 2024-12-15
-    Omaha Implementation                 :2024-11-15, 2025-01-30
-    Short Deck (6+ Hold'em)              :2024-12-15, 2025-02-28
+    Sit-n-Go Tournaments                 :2025-05-01, 2025-06-15
+    Omaha Implementation                 :2025-06-01, 2025-07-30
+    Short Deck (6+ Hold'em)              :2025-07-15, 2025-08-31
 
     section Platform Features
-    Mobile App Development               :2024-11-01, 2025-03-15
-    Multi-Language Support               :2025-01-15, 2025-03-15
-    Advanced Analytics                   :2025-02-01, 2025-04-30
-    Community Features                   :2025-03-01, 2025-05-30
+    Mobile App Development               :2025-06-01, 2025-08-15
+    Multi-Language Support               :2025-07-15, 2025-09-15
+    Advanced Analytics                   :2025-08-01, 2025-10-31
+    Community Features                   :2025-09-01, 2025-11-30
 ```
 
 ### Improved Texas Hold'em Implementation
@@ -571,22 +639,63 @@ gantt
   <img src="public/green-chip.svg" alt="Green Chip" width="50" />
 </div>
 
+<div align="right">
+  <a href="#top">Back to Top ↑</a>
+</div>
+
+## ETHGlobal Submission
+
+ZKPoker was submitted to the ETHGlobal Trifecta 2024 Hackathon in the Zero Knowledge track.
+
+- **Submission Page**: [https://ethglobal.com/showcase/mental-poker-1e0kd](https://ethglobal.com/showcase/mental-poker-1e0kd)
+
+### Project Description
+
+Mental Poker is a trustless multiplayer poker game built on the Aleo blockchain, leveraging zero-knowledge proofs and commutative SRA encryption to ensure privacy and fairness. In traditional poker games on-chain, card data is public by default due to transparent ledgers. Our system solves that by enabling all players to encrypt the deck without revealing any card content.
+
+Each player encrypts the deck with their own key and shuffles it. Due to the commutative nature of the encryption, cards can later be revealed only after all players have decrypted them in reverse order. This allows players to reveal only the cards they need to see—no one has access to the full deck.
+
+The game flow is maintained using a custom state machine that enforces turn logic, manages card states, and validates plays. All key cryptographic operations are executed through Aleo's Leo language, which compiles into provable logic to maintain game integrity without exposing player data.
+
+This project demonstrates how zero-knowledge cryptography can enable provably fair games on-chain without compromising privacy.
+
+### How it's Made
+
+We built Mental Poker using Aleo's zero-knowledge framework and Leo programming language to handle encrypted card logic, deck shuffling, and multi-party decryption. Each card is a ciphertext encrypted using SRA commutative encryption, implemented in Leo.
+
+The frontend is built using TypeScript and communicates with the game logic via Leo Smart Contract. Players interact with a browser-based UI that manages the state machine for turn-based gameplay, using local signatures and on-chain proof verification.
+
+The core state machine handles actions like: shuffle, encrypt, decrypt, deal, and reveal — each represented as separate Leo programs producing zero-knowledge proofs. These proofs are used to validate actions without exposing private data on-chain.
+
+We implemented SRA manually within Leo due to its unique commutative property and built a modular game client that supports adding more games using similar mechanics in the future. All of the gameplay functionality lives on the smart contract. There's no centralized server — the entire logic is designed to be distributed and trust-minimized, showcasing a practical zero-knowledge application.
+
+<div align="right">
+  <a href="#top">Back to Top ↑</a>
+</div>
+
 ## Contributing
 
 We welcome contributions to ZKPoker! Please see our [CONTRIBUTING.md](CONTRIBUTING.md) file for guidelines.
+
+<div align="right">
+  <a href="#top">Back to Top ↑</a>
+</div>
 
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
+<div align="right">
+  <a href="#top">Back to Top ↑</a>
+</div>
+
 ## Acknowledgments
 
 - The Aleo team for their incredible platform and tools
-- [Demox Labs](https://www.demoxlabs.xyz/) for their Amareleo testnet infrastructure and wallet adapter
+- [Amareleo](https://amareleo.com/) for their support with a light local testnet
 - EthGlobal Trifecta 2024 for the opportunity to showcase this project
 - The mental poker research community for laying the cryptographic foundations
 - [Puzzle Wallet](https://github.com/puzzlehq) team for their support with wallet compatibility issues
-- [Amareleo chain](https://amareleo.com/) for their support with the a light local testnet
 
 ---
 
