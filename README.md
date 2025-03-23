@@ -505,7 +505,7 @@ For detailed deployment information, see our [deployments.md](deployments.md) fi
 
 <div align="center">
   <div style="display: flex; justify-content: center; gap: 20px;">
-    <img src="public/cards/Ah.svg" alt="Ace of Hearts" width="60" />
+    <img src="public/cards/ah.svg" alt="Ace of Hearts" width="60" />
     <img src="public/cards/13c.svg" alt="King of Clubs" width="60" />
     <img src="public/cards/12d.svg" alt="Queen of Diamonds" width="60" />
     <img src="public/cards/11s.svg" alt="Jack of Spades" width="60" />
@@ -582,10 +582,11 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Acknowledgments
 
 - The Aleo team for their incredible platform and tools
-- [Demox Labs](https://www.demoxlabs.xyz/) for their AmarAleo testnet infrastructure and wallet adapter
+- [Demox Labs](https://www.demoxlabs.xyz/) for their Amareleo testnet infrastructure and wallet adapter
 - EthGlobal Trifecta 2024 for the opportunity to showcase this project
 - The mental poker research community for laying the cryptographic foundations
 - [Puzzle Wallet](https://github.com/puzzlehq) team for their support with wallet compatibility issues
+- [Amareleo chain](https://amareleo.com/) for their support with the a light local testnet
 
 ---
 
