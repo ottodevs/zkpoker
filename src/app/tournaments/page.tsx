@@ -2,7 +2,10 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Header from '@/components/Header';
+import BuyInOverlay from '@/components/BuyInOverlay';
 import { Exo } from 'next/font/google';
 
 const exo = Exo({
@@ -12,11 +15,11 @@ const exo = Exo({
 });
 
 const TOURNAMENTS = [
-  { svg: 'nlh1020', blinds: '10/20', buyIn: '100 - 1,000', players: 2 },
-  { svg: 'nlh100200', blinds: '100/200', buyIn: '4,000 - 40,000', players: 2 },
-  { svg: 'nlh5001000', blinds: '500/1,000', buyIn: '20,000 - 200k', players: 2 },
-  { svg: 'nlh25005000', blinds: '2,500/5,000', buyIn: '100k - 1M', players: 2 },
-  { svg: 'nlh500010000', blinds: '5,000/10,000', buyIn: '200k - 2M', players: 2 },
+  { svg: 'nlh1020', blinds: '10/20', buyIn: '100 - 1,000', players: 2, minBuyIn: 100, maxBuyIn: 1000 },
+  { svg: 'nlh100200', blinds: '100/200', buyIn: '4,000 - 40,000', players: 2, minBuyIn: 4000, maxBuyIn: 40000 },
+  { svg: 'nlh5001000', blinds: '500/1,000', buyIn: '20,000 - 200k', players: 2, minBuyIn: 20000, maxBuyIn: 200000 },
+  { svg: 'nlh25005000', blinds: '2,500/5,000', buyIn: '100k - 1M', players: 2, minBuyIn: 100000, maxBuyIn: 1000000 },
+  { svg: 'nlh500010000', blinds: '5,000/10,000', buyIn: '200k - 2M', players: 2, minBuyIn: 200000, maxBuyIn: 2000000 },
 ];
 
 const JoinButtonBg = () => (
@@ -32,6 +35,29 @@ const JoinButtonBg = () => (
 );
 
 export default function Tournaments() {
+  const router = useRouter();
+  const [showBuyIn, setShowBuyIn] = useState(false);
+  const [selectedTournament, setSelectedTournament] = useState<(typeof TOURNAMENTS)[0] | null>(null);
+
+  const handleJoinClick = (tournament: (typeof TOURNAMENTS)[0]) => {
+    setSelectedTournament(tournament);
+    setShowBuyIn(true);
+  };
+
+  const handleBuyIn = (avatarIndex: number, amount: number) => {
+    // Close the overlay
+    setShowBuyIn(false);
+    
+    // Add console logs to track what's being passed
+    console.log("Selected avatar index:", avatarIndex);
+    console.log("Buy-in amount:", amount);
+    console.log("Selected blinds:", selectedTournament?.blinds);
+    
+    // In a real app, you'd likely store this information in a state management solution
+    // For now, we'll redirect to a poker room with query params
+    router.push(`/poker-room?avatar=${avatarIndex}&chips=${amount}&blinds=${selectedTournament?.blinds}&gameType=tournament`);
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-[#0E1C2E]">
       {/* Header */}
@@ -83,16 +109,17 @@ export default function Tournaments() {
 
             {/* Game Cards */}
             <div className="space-y-6">
-              {TOURNAMENTS.map((game, index) => (
+              {TOURNAMENTS.map((tournament, index) => (
                 <div key={index} className="relative flex items-center w-full">
                   <Image
-                    src={`/nlh-games/${game.svg}.svg`}
-                    alt={`NLH ${game.blinds}`}
+                    src={`/nlh-games/${tournament.svg}.svg`}
+                    alt={`NLH ${tournament.blinds}`}
                     width={1260}
                     height={80}
                     className="w-full h-auto"
+                    style={{ height: "auto" }}
                   />
-                  <div className="absolute right-8 w-[124.839px] h-[62px] top-7 cursor-pointer">
+                  <div className="absolute right-8 w-[124.839px] h-[62px] top-7 cursor-pointer" onClick={() => handleJoinClick(tournament)}>
                     <JoinButtonBg />
                     <div className="absolute inset-0 flex items-center justify-center">
                       <span className={`text-black text-xl font-bold ${exo.className}`}>JOIN</span>
@@ -104,6 +131,18 @@ export default function Tournaments() {
           </div>
         </div>
       </div>
+      
+      {/* Buy-in Overlay */}
+      {selectedTournament && (
+        <BuyInOverlay
+          isOpen={showBuyIn}
+          onClose={() => setShowBuyIn(false)}
+          onBuyIn={handleBuyIn}
+          minBuyIn={selectedTournament.minBuyIn}
+          maxBuyIn={selectedTournament.maxBuyIn}
+          blinds={selectedTournament.blinds}
+        />
+      )}
     </div>
   );
 } 
