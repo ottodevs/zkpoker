@@ -13,6 +13,7 @@ interface PokerControlProps {
   onAction: (action: string) => void;
   playerChips?: number; // Optional prop for player's total chips
   avatarIndex?: number; // Add avatar index prop
+  existingBet?: boolean; // Add whether there's an existing bet higher than blinds
 }
 
 // SVG Components for button backgrounds
@@ -143,21 +144,22 @@ const SliderInactiveGauge = () => (
   </svg>
 );
 
-export default function PokerControl({ onAction, playerChips = 2300, avatarIndex = 0 }: PokerControlProps) {
-  const [betAmount, setBetAmount] = useState("2000");
-  const [sliderPosition, setSliderPosition] = useState(20); // Initial position percentage
+export default function PokerControl({ onAction, playerChips = 2300, avatarIndex = 0, existingBet = false }: PokerControlProps) {
+  const [betAmount, setBetAmount] = useState("0");
+  const [sliderPosition, setSliderPosition] = useState(0); // Initial position 0%
   const [isDragging, setIsDragging] = useState(false);
   // Button hover states
   const [hoveredButton, setHoveredButton] = useState<string | null>(null);
   // Track all-in state
   const [isAllIn, setIsAllIn] = useState(false);
   
-  // Log the avatar index when the component renders or the avatarIndex prop changes
+  // Log essential info only once when the component renders or when critical props change
   useEffect(() => {
     console.log("PokerControl received avatarIndex:", avatarIndex);
     console.log("Avatar path should be:", `/avatar${avatarIndex + 1}.png`);
     console.log("Player chips:", playerChips);
-  }, [avatarIndex, playerChips]);
+    console.log("Existing bet:", existingBet ? "Yes (show RAISE)" : "No (show BET)");
+  }, [avatarIndex, playerChips, existingBet]);
   
   const sliderContainerRef = useRef<HTMLDivElement>(null);
   // Use player's chips as the maximum bet instead of hardcoded value
@@ -179,7 +181,7 @@ export default function PokerControl({ onAction, playerChips = 2300, avatarIndex
 
   const handleBetChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     // Only allow numeric input
-    const value = e.target.value.replace(/[^0-9]/g, '');
+    const value = e.target.value.replace(/[^0-9]/g, '').replace(/^\$/, '');
     
     // Cap the bet at player's available chips
     const numericValue = parseInt(value, 10) || 0;
@@ -191,8 +193,8 @@ export default function PokerControl({ onAction, playerChips = 2300, avatarIndex
     // If user manually changes bet, they're no longer all-in
     setIsAllIn(cappedValue === playerChips);
     
-    // Tell the poker room about the bet change
-    onAction(`bet_${cappedValue}`);
+    // Remove the action call - only update the UI
+    // onAction(`bet_${cappedValue}`);
     
     // Update slider position when input changes
     updatePositionFromBet(cappedValue);
@@ -213,9 +215,10 @@ export default function PokerControl({ onAction, playerChips = 2300, avatarIndex
       // If the bet equals max chips, it's an all-in
       setIsAllIn(newBet === playerChips);
       
-      onAction(`bet_${newBet}`);
+      // Remove the action call - only update the UI
+      // onAction(`bet_${newBet}`);
     }
-  }, [maxBet, onAction, playerChips]);
+  }, [maxBet, playerChips]);
 
   const handleSliderClick = (e: React.MouseEvent<HTMLDivElement>) => {
     // Only handle direct clicks, not drag events
@@ -270,7 +273,7 @@ export default function PokerControl({ onAction, playerChips = 2300, avatarIndex
             <WinBoxBg />
             <div className="absolute inset-0 flex items-center px-4 text-white">
               <span className="mr-2 text-gray-300">WIN:</span>
-              <span className="font-bold text-xl">$2,190</span>
+              <span className="font-bold text-xl">$0</span>
             </div>
           </div>
           
@@ -407,11 +410,20 @@ export default function PokerControl({ onAction, playerChips = 2300, avatarIndex
               <RaiseButtonBg isHovered={hoveredButton === 'raise'} />
               <button 
                 className="absolute inset-0 flex items-center justify-center text-white font-bold z-10 text-[21px] transition-all duration-200 cursor-pointer"
-                onClick={() => onAction('raise')}
+                onClick={() => {
+                  // When the green button is clicked, send the current bet amount as part of the action
+                  const currentBet = parseInt(betAmount, 10);
+                  if (currentBet > 0) {
+                    onAction(existingBet ? `bet_${currentBet}` : `bet_${currentBet}`);
+                  } else {
+                    // If no amount is set, use the default action
+                    onAction(existingBet ? 'raise' : 'bet');
+                  }
+                }}
                 onMouseEnter={() => setHoveredButton('raise')}
                 onMouseLeave={() => setHoveredButton(null)}
               >
-                RAISE
+                {existingBet ? 'RAISE' : 'BET'}
               </button>
             </div>
             
@@ -478,7 +490,8 @@ export default function PokerControl({ onAction, playerChips = 2300, avatarIndex
                 setBetAmount(newBet.toString());
                 setIsAllIn(false);
                 updatePositionFromBet(newBet);
-                onAction(`bet_${newBet}`);
+                // Remove the action call - only update the UI
+                // onAction(`bet_${newBet}`);
               }}
               onMouseEnter={() => !isAllIn && setHoveredButton('minus')}
               onMouseLeave={() => setHoveredButton(null)}
@@ -519,7 +532,8 @@ export default function PokerControl({ onAction, playerChips = 2300, avatarIndex
                 setBetAmount(newBet.toString());
                 setIsAllIn(false);
                 updatePositionFromBet(newBet);
-                onAction(`bet_${newBet}`);
+                // Remove the action call - only update the UI
+                // onAction(`bet_${newBet}`);
               }}
               onMouseEnter={() => !isAllIn && setHoveredButton('plus')}
               onMouseLeave={() => setHoveredButton(null)}

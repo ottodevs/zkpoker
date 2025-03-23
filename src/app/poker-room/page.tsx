@@ -6,6 +6,7 @@ import Link from "next/link";
 import PokerControl from "@/components/PokerControl";
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
+import soundService from '@/services/SoundService';
 
 // Define types for our game state
 interface Player {
@@ -20,6 +21,14 @@ interface Player {
   isSmallBlind: boolean;
   isBigBlind: boolean;
 }
+
+// Chip values constants
+const CHIP_VALUES = {
+  RED: 10,    // Small blind / lower value
+  BLUE: 20,   // Big blind / medium value
+  YELLOW: 50, // Higher value
+  GREEN: 100  // Highest value
+};
 
 interface GameState {
   // Table state
@@ -37,6 +46,8 @@ interface GameState {
   deck: string[];
   // Track the human player's ID for perspective rendering
   humanPlayerId: string | null;
+  // Flag to track if this is a new betting round to prevent auto-advancing
+  isNewBettingRound?: boolean;
 }
 
 // Add new types for turns and player actions after the GameState interface
@@ -62,6 +73,12 @@ export default function PokerRoom() {
   // Track game status with a more visible state
   const [gameStatus, setGameStatus] = useState<'initializing' | 'waiting' | 'ready' | 'playing' | 'finished'>('initializing');
   
+  // Add state for game notifications
+  const [gameNotification, setGameNotification] = useState<{message: string, type: 'info' | 'success' | 'error' | null}>({
+    message: '',
+    type: null
+  });
+  
   // Use a ref to track if initialization has occurred
   const hasInitialized = useRef(false);
   
@@ -79,9 +96,9 @@ export default function PokerRoom() {
   const initializeGame = useCallback((playerId: string, position: number, chips: number, avatarIndex: number) => {
     console.log(`Initializing game with player ${playerId} sitting at position ${position}`);
     
-    // Always use 10/20 blinds regardless of what was passed in URL
-    const smallBlind = 10;
-    const bigBlind = 20;
+    // Use chip value constants for blinds
+    const smallBlind = CHIP_VALUES.RED;  // Red chip
+    const bigBlind = CHIP_VALUES.BLUE;   // Blue chip
     
     // Create initial deck (will be shuffled when game actually starts)
     const suits = ['h', 'd', 'c', 's']; // hearts, diamonds, clubs, spades
@@ -254,6 +271,10 @@ export default function PokerRoom() {
       return;
     }
     
+    // Initialize table music and sounds
+    soundService.preloadSounds();
+    soundService.playMusic('TABLE');
+    
     if (searchParams) {
       const avatarIndex = parseInt(searchParams.get('avatar') || '0', 10);
       const chips = parseInt(searchParams.get('chips') || '2300', 10);
@@ -277,7 +298,12 @@ export default function PokerRoom() {
       // Mark as initialized
       hasInitialized.current = true;
     }
-  }, [searchParams, autoSeatPlayer]); // Added autoSeatPlayer to dependency array
+    
+    // Cleanup music when component unmounts
+    return () => {
+      soundService.stopMusic();
+    };
+  }, [searchParams, autoSeatPlayer]);
   
   // Assign dealer, small blind, and big blind positions
   const assignTablePositions = (gameState: GameState) => {
@@ -292,8 +318,22 @@ export default function PokerRoom() {
     // Sort players by position for easier assignment
     const sortedPlayers = [...gameState.players].sort((a, b) => a.position - b.position);
     
-    // Assign dealer button (first player to join is dealer in first hand)
-    const dealerIndex = 0;
+    // Find the dealer player index in the sorted array
+    let dealerIndex = 0; // Default to first player for initial game
+    
+    // If we have a dealer position already set, use it
+    if (gameState.dealerPosition !== undefined) {
+      // Find the player with the dealer position in the sorted array
+      dealerIndex = sortedPlayers.findIndex(p => p.position === gameState.dealerPosition);
+      
+      // If not found (should not happen), use first player
+      if (dealerIndex === -1) {
+        dealerIndex = 0;
+        console.warn("Could not find dealer position, defaulting to first player");
+      }
+    }
+    
+    // Assign dealer button
     sortedPlayers[dealerIndex].isDealer = true;
     gameState.dealerPosition = sortedPlayers[dealerIndex].position;
     console.log(`Dealer assigned to player at seat ${sortedPlayers[dealerIndex].position}`);
@@ -332,6 +372,9 @@ export default function PokerRoom() {
     gameState.players.forEach(player => {
       player.holeCards = [];
     });
+    
+    // Play card shuffling sound
+    soundService.playSfx('CARD_DEAL');
     
     // Sort players by position for clockwise dealing
     const sortedPlayers = [...gameState.players].sort((a, b) => a.position - b.position);
@@ -419,8 +462,26 @@ export default function PokerRoom() {
     // Get valid actions and check if the action is valid
     const validActions = getValidActions(gameState);
     
-    // Verify the action is valid
-    const actionType = action.includes('_') ? action.split('_')[0] : action;
+    // Verify the action is valid - handle special case for all_in
+    let actionType = action.includes('_') ? action.split('_')[0] : action;
+    
+    // Map "all_in" to "all-in" (the format expected by the validation)
+    if (actionType === 'all_in') {
+      actionType = 'all-in';
+    }
+    
+    // Handle the case where player tries to bet when raise is required
+    if (actionType === 'bet' && !validActions.includes('bet') && validActions.includes('raise')) {
+      console.log("Converting bet action to raise action since bet is not valid but raise is");
+      actionType = 'raise';
+      // Also update the full action for processing
+      if (action.startsWith('bet_')) {
+        action = 'raise_' + action.split('_')[1];
+      } else {
+        action = 'raise';
+      }
+    }
+    
     if (!validActions.includes(actionType as PlayerAction)) {
       console.log(`Invalid action: ${action}. Valid actions are: ${validActions.join(', ')}`);
       return;
@@ -435,8 +496,68 @@ export default function PokerRoom() {
       // Update game state after action
       const updatedGameState = advanceTurn(gameState);
       setGameState(updatedGameState);
+    } else if (action === 'check') {
+      handleCheckAction(gameState, player);
+      
+      // Update game state after action
+      const updatedGameState = advanceTurn(gameState);
+      setGameState(updatedGameState);
+    } else if (action === 'fold') {
+      handleFoldAction(gameState, player);
+      
+      // No need to call advanceTurn here as it's handled in handleFoldAction
+      // to properly check for game-ending conditions
+    } else if (action === 'bet') {
+      // Default bet amount (minimum bet)
+      handleBetAction(gameState, player, gameState.blinds.big);
+      
+      // Update game state after action
+      const updatedGameState = advanceTurn(gameState);
+      setGameState(updatedGameState);
+    } else if (action.startsWith('bet_')) {
+      // Handle bet with specified amount
+      const betAmount = parseInt(action.split('_')[1], 10);
+      if (!isNaN(betAmount)) {
+        handleBetAction(gameState, player, betAmount);
+        
+        // Update game state after action
+        const updatedGameState = advanceTurn(gameState);
+        setGameState(updatedGameState);
+      }
+    } else if (action === 'raise') {
+      // Default raise amount (minimum raise)
+      handleBetAction(gameState, player, gameState.minBet * 2);
+      
+      // Update game state after action
+      const updatedGameState = advanceTurn(gameState);
+      setGameState(updatedGameState);
+    } else if (action.startsWith('raise_')) {
+      // Handle raise with specified amount
+      const raiseAmount = parseInt(action.split('_')[1], 10);
+      if (!isNaN(raiseAmount)) {
+        handleBetAction(gameState, player, raiseAmount);
+        
+        // Update game state after action
+        const updatedGameState = advanceTurn(gameState);
+        setGameState(updatedGameState);
+      }
+    } else if (action === 'all-in' || action.startsWith('all_in_')) {
+      // Handle all-in action - bet all remaining chips
+      const allInAmount = action.startsWith('all_in_') 
+        ? parseInt(action.split('_')[2], 10) 
+        : player.chips;
+        
+      if (!isNaN(allInAmount)) {
+        console.log(`Processing all-in with ${allInAmount} chips`);
+        handleBetAction(gameState, player, allInAmount);
+        player.status = 'all-in';
+        
+        // Update game state after action
+        const updatedGameState = advanceTurn(gameState);
+        setGameState(updatedGameState);
+      }
     }
-    // Handle other actions like check, fold, raise, etc.
+    // Handle other actions like raise, etc.
     // ... existing code ...
   };
 
@@ -446,6 +567,12 @@ export default function PokerRoom() {
   const handleCallAction = (gameState: GameState, player: Player) => {
     console.log("Processing call action...");
     console.log(`Player current bet: ${player.currentBet}, chips: ${player.chips}`);
+    
+    // Play call sound
+    soundService.playSfx('CALL');
+    
+    // Clear the new betting round flag since a player has acted
+    gameState.isNewBettingRound = false;
     
     // Find the highest bet at the table
     const highestBet = Math.max(...gameState.players.map(p => p.currentBet));
@@ -475,11 +602,237 @@ export default function PokerRoom() {
     console.log(`Call processed. Player now has ${player.chips} chips and current bet of ${player.currentBet}`);
     console.log(`New pot total: ${gameState.pot}`);
     
-    // Advance to the next player
+    // Check if betting round is complete after this call
+    if (isBettingRoundComplete(gameState)) {
+      console.log("After call, betting round is complete!");
+      advanceGamePhase(gameState);
+    } else {
+      // Advance to the next player only if betting round isn't complete
+      advanceToNextPlayer(gameState);
+    }
+    
+    // Update the game state
+    setGameState({ ...gameState });
+  };
+
+  /**
+   * Handle the "check" action
+   */
+  const handleCheckAction = (gameState: GameState, player: Player) => {
+    console.log("Processing check action...");
+    
+    // Play check sound
+    soundService.playSfx('CHECK');
+    
+    // Clear the new betting round flag since a player has acted
+    gameState.isNewBettingRound = false;
+    
+    // Verify that the player can check (no bets or player has matched the highest bet)
+    const highestBet = Math.max(...gameState.players.map(p => p.currentBet));
+    
+    if (highestBet > player.currentBet) {
+      console.error(`Cannot check, there's a bet to call: ${highestBet}`);
+      return;
+    }
+    
+    console.log(`Player checks (current bet: ${player.currentBet})`);
+    
+    // Check if betting round is complete after this check
+    if (isBettingRoundComplete(gameState)) {
+      console.log("After check, betting round is complete!");
+      advanceGamePhase(gameState);
+    } else {
+      // Advance to the next player only if betting round isn't complete
+      advanceToNextPlayer(gameState);
+    }
+    
+    // Update the game state
+    setGameState({ ...gameState });
+  };
+
+  /**
+   * Handle the "fold" action
+   */
+  const handleFoldAction = (gameState: GameState, player: Player) => {
+    console.log("Processing fold action...");
+    
+    // Play fold sound
+    soundService.playSfx('FOLD');
+    
+    // Clear the new betting round flag since a player has acted
+    gameState.isNewBettingRound = false;
+    
+    // Mark the player as folded
+    player.status = 'folded';
+    console.log(`Player ${player.id} folded`);
+    
+    // Show fold notification
+    const isHuman = player.id === gameState.humanPlayerId;
+    setGameNotification({
+      message: isHuman ? "You folded" : `Opponent folded`,
+      type: 'info'
+    });
+    
+    // In a heads-up game (2 players) or when only one active player remains,
+    // immediately award the pot and start a new hand
+    const activePlayers = gameState.players.filter(p => p.status === 'active' || p.status === 'all-in');
+    console.log(`Active players remaining: ${activePlayers.length}`);
+    
+    // If there's only one active player left or this is a heads-up game and someone folded
+    if (activePlayers.length === 1 || gameState.players.length === 2) {
+      // The remaining active player wins the pot
+      const winner = activePlayers[0];
+      const isHumanWinner = winner.id === gameState.humanPlayerId;
+      console.log(`Player ${winner.id} wins by default (opponent folded)`);
+      
+      // Award the pot to the winner
+      winner.chips += gameState.pot;
+      console.log(`Awarding pot of ${gameState.pot} to player ${winner.id}`);
+      
+      // Show winning notification
+      setGameNotification({
+        message: isHumanWinner ? `You win ${gameState.pot} chips!` : `Opponent wins ${gameState.pot} chips`,
+        type: 'success'
+      });
+      
+      // Show temporary winning message
+      setGameStatus('finished');
+      
+      // Begin a new hand after a delay
+      setTimeout(() => {
+        // Clear notification before starting new hand
+        setGameNotification({ message: '', type: null });
+        startNewHand(gameState);
+      }, 3000);
+      
+      return;
+    }
+    
+    // If more than one active player and not a heads-up game, advance to the next player
     advanceToNextPlayer(gameState);
     
     // Update the game state
     setGameState({ ...gameState });
+    
+    // Clear notification after 3 seconds
+    setTimeout(() => {
+      setGameNotification({ message: '', type: null });
+    }, 3000);
+  };
+
+  /**
+   * Start a new hand after the current one ends
+   */
+  const startNewHand = (gameState: GameState) => {
+    console.log("Starting a new hand...");
+    
+    // Reset player statuses first without showing empty UI
+    gameState.players.forEach(player => {
+      player.status = 'active';
+      player.currentBet = 0;
+    });
+    
+    // Reset game state
+    gameState.pot = 0;
+    gameState.communityCards = []; // Clear cards immediately
+    gameState.sidePots = [];
+    gameState.currentBettingRound = null;
+    gameState.gamePhase = 'waiting';
+    
+    // Update the UI to clear cards and pot before animation
+    setGameState({ ...gameState });
+    
+    // Start transition animation after UI has updated
+    setTimeout(() => {
+      // Add transition class to indicate game ending
+      const gameContainer = document.querySelector('.poker-table-container');
+      if (gameContainer) {
+        gameContainer.classList.add('game-transition-out');
+      }
+      
+      // Wait a short time for animation to happen
+      setTimeout(() => {
+        // Clear hole cards during the animation when table is faded
+        gameState.players.forEach(player => {
+          player.holeCards = [];
+        });
+        
+        // Rotate dealer position
+        rotateTablePositions(gameState);
+        
+        // Shuffle the deck
+        gameState.deck = shuffleDeck([...gameState.deck]);
+        
+        // Update the UI with empty cards but new positions
+        setGameState({ ...gameState });
+        
+        // Complete the transition and start new game
+        setTimeout(() => {
+          // Remove transition class
+          if (gameContainer) {
+            gameContainer.classList.remove('game-transition-out');
+            gameContainer.classList.add('game-transition-in');
+          }
+          
+          console.log("Dealing new hand...");
+          startGame(gameState);
+          
+          // Remove the in transition class after animation completes
+          setTimeout(() => {
+            if (gameContainer) {
+              gameContainer.classList.remove('game-transition-in');
+            }
+          }, 1000);
+        }, 500);
+      }, 300);
+    }, 100);
+  };
+
+  /**
+   * Rotate table positions (dealer, small blind, big blind)
+   */
+  const rotateTablePositions = (gameState: GameState) => {
+    console.log("Rotating table positions for a new hand...");
+    
+    // Find current dealer with position or index
+    let currentDealerIndex = -1;
+    
+    // First try to find by isDealer flag
+    currentDealerIndex = gameState.players.findIndex(p => p.isDealer);
+    
+    // If not found, try to find by dealerPosition
+    if (currentDealerIndex === -1 && gameState.dealerPosition !== null) {
+      currentDealerIndex = gameState.players.findIndex(p => p.position === gameState.dealerPosition);
+    }
+    
+    // If still not found, default to first player
+    if (currentDealerIndex === -1) {
+      console.warn("Could not find current dealer, defaulting to first player");
+      currentDealerIndex = 0;
+    }
+    
+    console.log(`Current dealer found at index ${currentDealerIndex}, position ${gameState.players[currentDealerIndex].position}`);
+    
+    // Reset all positions
+    gameState.players.forEach(p => {
+      p.isDealer = false;
+      p.isSmallBlind = false;
+      p.isBigBlind = false;
+    });
+    
+    // Rotate dealer to next player (clockwise)
+    const nextDealerIndex = (currentDealerIndex + 1) % gameState.players.length;
+    gameState.players[nextDealerIndex].isDealer = true;
+    gameState.dealerPosition = gameState.players[nextDealerIndex].position;
+    
+    // Set small blind and big blind
+    const sbIndex = (nextDealerIndex + 1) % gameState.players.length;
+    const bbIndex = (sbIndex + 1) % gameState.players.length;
+    
+    gameState.players[sbIndex].isSmallBlind = true;
+    gameState.players[bbIndex].isBigBlind = true;
+    
+    console.log(`Rotated positions: Dealer at seat ${gameState.players[nextDealerIndex].position}, SB at ${gameState.players[sbIndex].position}, BB at ${gameState.players[bbIndex].position}`);
   };
 
   /**
@@ -489,8 +842,11 @@ export default function PokerRoom() {
     // Get the next player in turn
     const nextPlayerPosition = getNextPlayerInTurn(gameState, gameState.currentPlayerTurn);
     
+    console.log(`advanceToNextPlayer called, current player: ${gameState.currentPlayerTurn}, next player: ${nextPlayerPosition}`);
+    
     // If there's no next player (all folded or all-in), end the round
     if (nextPlayerPosition === null) {
+      console.log("No next player found, ending betting round and advancing game phase");
       // End current betting round and advance to next phase
       advanceGamePhase(gameState);
       return;
@@ -499,6 +855,60 @@ export default function PokerRoom() {
     // Set the next player as the current turn
     gameState.currentPlayerTurn = nextPlayerPosition;
     console.log(`Turn advanced to player at position ${nextPlayerPosition}`);
+  };
+
+  /**
+   * Handle the "bet" action
+   */
+  const handleBetAction = (gameState: GameState, player: Player, amount: number) => {
+    console.log(`Processing bet/raise action with amount: ${amount}...`);
+    
+    // Play bet/chip sound
+    soundService.playSfx('BET');
+    
+    // Clear the new betting round flag since a player has acted
+    gameState.isNewBettingRound = false;
+    
+    // Verify the player has enough chips
+    if (player.chips < amount) {
+      console.error(`Not enough chips to bet ${amount}. Only have ${player.chips}`);
+      return;
+    }
+    
+    // Ensure bet is at least the minimum bet
+    if (amount < gameState.minBet) {
+      console.log(`Bet amount (${amount}) is less than minimum bet (${gameState.minBet}), increasing to minimum`);
+      amount = gameState.minBet;
+    }
+    
+    console.log(`Player bets ${amount}`);
+    
+    // Deduct bet from player's chips
+    player.chips -= amount;
+    
+    // Add bet to player's current bet
+    player.currentBet += amount;
+    
+    // Add bet to the pot
+    gameState.pot += amount;
+    
+    // Update last raise amount
+    gameState.lastRaiseAmount = amount;
+    
+    console.log(`Bet processed. Player now has ${player.chips} chips and current bet of ${player.currentBet}`);
+    console.log(`New pot total: ${gameState.pot}`);
+    
+    // Check if betting round is complete (shouldn't be after a bet, but check anyway)
+    if (isBettingRoundComplete(gameState)) {
+      console.log("After bet, betting round is complete!");
+      advanceGamePhase(gameState);
+    } else {
+      // Advance to the next player
+      advanceToNextPlayer(gameState);
+    }
+    
+    // Update the game state
+    setGameState({ ...gameState });
   };
 
   // Track which seat is being hovered
@@ -563,6 +973,12 @@ export default function PokerRoom() {
       player => player.position === seatNumber && player.id === gameState.humanPlayerId
     ) || false;
     
+    // Get the player at this seat (if any)
+    const playerAtSeat = gameState?.players.find(player => player.position === seatNumber);
+    
+    // Determine if cards should be shown face up (during showdown)
+    const showFaceUpCards = gameState?.gamePhase === 'showdown' && playerAtSeat?.status !== 'folded';
+    
     // Log seat status for debugging
     if (isOccupied) {
       console.log(`Seat ${seatNumber} is occupied by ${isHumanPlayer ? 'human player' : 'opponent'}`);
@@ -588,9 +1004,6 @@ export default function PokerRoom() {
         setHoveredSeat(null);
       }
     };
-    
-    // For rendering purposes, find the player at this seat (if any)
-    const playerAtSeat = gameState?.players.find(player => player.position === seatNumber);
     
     // If this is the human player's seat, we don't render anything here
     // as the player will be shown at the bottom center via the PokerControl component
@@ -630,28 +1043,54 @@ export default function PokerRoom() {
               />
             </div>
 
-            {/* Player's cards (face down for opponents) - positioned on top of the avatar */}
+            {/* Player's cards */}
             {gameState?.gamePhase !== 'waiting' && gameStatus === 'playing' && playerAtSeat.holeCards.length > 0 && (
               <div className="absolute top-[30px] left-[10px] z-20">
                 <div className="relative flex -space-x-10">
-                  <Image 
-                    src="/backofcard.png" 
-                    alt="Card Back" 
-                    width={80} 
-                    height={120} 
-                    priority 
-                    className="-rotate-15 scale-[0.55]"
-                    style={{ height: "auto" }}
-                  />
-                  <Image 
-                    src="/backofcard.png" 
-                    alt="Card Back" 
-                    width={80} 
-                    height={120} 
-                    priority 
-                    className="rotate-15 scale-[0.55]"
-                    style={{ height: "auto" }}
-                  />
+                  {/* Show cards face up during showdown, face down otherwise */}
+                  {showFaceUpCards ? (
+                    <>
+                      <Image 
+                        src={getCardImagePath(playerAtSeat.holeCards[0]) || ''}
+                        alt="Card 1" 
+                        width={80} 
+                        height={120} 
+                        priority 
+                        className="-rotate-15 scale-[1.1] transition-transform duration-500"
+                        style={{ height: "auto" }}
+                      />
+                      <Image 
+                        src={getCardImagePath(playerAtSeat.holeCards[1]) || ''}
+                        alt="Card 2" 
+                        width={80} 
+                        height={120} 
+                        priority 
+                        className="rotate-15 scale-[1.1] transition-transform duration-500"
+                        style={{ height: "auto" }}
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <Image 
+                        src="/backofcard.png" 
+                        alt="Card Back" 
+                        width={80} 
+                        height={120} 
+                        priority 
+                        className="-rotate-15 scale-[0.55] transition-transform duration-300"
+                        style={{ height: "auto" }}
+                      />
+                      <Image 
+                        src="/backofcard.png" 
+                        alt="Card Back" 
+                        width={80} 
+                        height={120} 
+                        priority 
+                        className="rotate-15 scale-[0.55] transition-transform duration-300"
+                        style={{ height: "auto" }}
+                      />
+                    </>
+                  )}
                 </div>
               </div>
             )}
@@ -755,9 +1194,10 @@ export default function PokerRoom() {
     return positions[seatNumber] || { top: '0', left: '0' };
   };
 
-  // Helper function to get blind chips position for each seat
-  const getChipPosition = (seatNumber: number) => {
-    const positions: { [key: number]: { top: string, left: string } } = {
+  // Helper function to get chip position for each seat (for blinds and bets)
+  const getChipPosition = (seatNumber: number, type: 'blind' | 'bet' = 'blind') => {
+    // Positions for blind chips (small blind and big blind)
+    const blindPositions: { [key: number]: { top: string, left: string } } = {
       1: { top: 'calc(60% + 20px)', left: 'calc(23% + 15px)' },
       2: { top: 'calc(37% + 21px)', left: 'calc(6% + 28px)' },
       3: { top: 'calc(20% + 20px)', left: 'calc(11% + 30px)' },
@@ -769,16 +1209,31 @@ export default function PokerRoom() {
       9: { top: 'calc(60% + 20px)', left: 'calc(50% - 10px)' }
     };
     
+    // Positions for regular bet chips (slightly closer to center)
+    const betPositions: { [key: number]: { top: string, left: string } } = {
+      1: { top: 'calc(40% + 20px)', left: 'calc(30% + 0px)' },
+      2: { top: 'calc(25% + 21px)', left: 'calc(16% + 20px)' },
+      3: { top: 'calc(15% + 20px)', left: 'calc(26% + 30px)' },
+      4: { top: 'calc(22% + 22px)', left: 'calc(35% + 20px)' },
+      5: { top: 'calc(22% + 22px)', left: 'calc(58% + 0px)' },
+      6: { top: 'calc(17% + 20px)', left: 'calc(69% + 0px)' },
+      7: { top: 'calc(30% + 14px)', left: 'calc(79% + 0px)' },
+      8: { top: 'calc(45% + 26px)', left: 'calc(65% + 5px)' },
+      9: { top: 'calc(45% + 20px)', left: 'calc(45% + 0px)' }
+    };
+    
+    // Return position based on type
+    const positions = type === 'blind' ? blindPositions : betPositions;
     return positions[seatNumber] || { top: '0', left: '0' };
   };
 
-  // Add these turn management functions after the startGame function
   /**
    * Get the next player in turn order (clockwise)
    * Skips players who have folded or are all-in
    */
   const getNextPlayerInTurn = (gameState: GameState, currentPosition: number | null): number | null => {
     if (!gameState || gameState.players.length < 2) {
+      console.log("getNextPlayerInTurn: No game state or not enough players");
       return null;
     }
     
@@ -809,8 +1264,11 @@ export default function PokerRoom() {
       
       // Only active players can take their turn
       if (nextPlayer.status === 'active') {
+        console.log(`Next player found at position ${nextPlayer.position} (status: ${nextPlayer.status})`);
         return nextPlayer.position;
       }
+      
+      console.log(`Skipping player at position ${nextPlayer.position} (status: ${nextPlayer.status})`);
       
       // Move to the next player
       nextIndex = (nextIndex + 1) % sortedPlayers.length;
@@ -818,21 +1276,102 @@ export default function PokerRoom() {
     }
     
     // If all players are inactive (folded/all-in), return null to end the round
+    console.log("No active players found, returning null to end the round");
     return null;
   };
 
   /**
-   * Advance the turn to the next player
+   * Check if the current betting round is complete
+   * A betting round is complete when all active players have either:
+   * 1. Called the highest bet, or
+   * 2. Folded
    */
+  const isBettingRoundComplete = (gameState: GameState): boolean => {
+    if (!gameState) return false;
+    
+    console.log("Checking if betting round is complete...");
+    
+    // Get the highest bet at the table
+    const highestBet = Math.max(...gameState.players.map(p => p.currentBet));
+    console.log(`Highest bet at table: ${highestBet}`);
+    
+    // Count how many players can act
+    const playersWhoCanAct = gameState.players.filter(p => 
+      p.status === 'active' || p.status === 'all-in').length;
+    
+    // For rounds after pre-flop, require all active players to have had a chance to act
+    if (gameState.currentBettingRound !== 'pre-flop' && highestBet === 0) {
+      // If all active players have had a chance to act (by checking), then the round is complete
+      // We track this by checking if we've returned to the first player who acted in this round
+      
+      // If we've made a full circle through all active players and everyone has checked,
+      // then the round is complete
+      if (playersWhoCanAct <= 1) {
+        // Only one player left, round is complete
+        console.log("Only one player can act, betting round is complete");
+        return true;
+      }
+      
+      // If we're back to the first player who acted in this round, and everyone has checked,
+      // then the round is complete
+      if (!gameState.isNewBettingRound && gameState.currentPlayerTurn === gameState.humanPlayerId) {
+        // We've made a full circle through all active players
+        console.log("All players have checked, betting round is complete");
+        return true;
+      }
+      
+      console.log(`No betting activity in ${gameState.currentBettingRound} round yet, checking if all players have acted`);
+    }
+    
+    // Check each active player
+    for (const player of gameState.players) {
+      // Skip folded players
+      if (player.status === 'folded') continue;
+      
+      // Skip all-in players
+      if (player.status === 'all-in') continue;
+      
+      // If an active player hasn't matched the highest bet, round isn't complete
+      if (player.status === 'active' && player.currentBet !== highestBet) {
+        console.log(`Player ${player.id} at position ${player.position} has bet ${player.currentBet}, which doesn't match highest bet ${highestBet}`);
+        return false;
+      }
+    }
+    
+    // If we're here, all active players have acted and matched the highest bet (or folded)
+    console.log("All active players have matched the highest bet or folded - betting round is complete!");
+    return true;
+  };
+
+  // Add debug logging to advanceTurn
   const advanceTurn = (gameState: GameState): GameState => {
     // Create a copy of the game state
     const newGameState = { ...gameState };
     
+    console.log("advanceTurn called, current betting round:", newGameState.currentBettingRound);
+    console.log("Current player turn:", newGameState.currentPlayerTurn);
+    
+    // If this is a new betting round, clear the flag and don't check for completion
+    if (newGameState.isNewBettingRound) {
+      console.log("This is a new betting round, not checking for completion yet");
+      newGameState.isNewBettingRound = false;
+      return newGameState;
+    }
+    
+    // Check if betting round is complete before advancing to next player
+    if (isBettingRoundComplete(newGameState)) {
+      console.log("Betting round is complete, advancing game phase...");
+      advanceGamePhase(newGameState);
+      return newGameState;
+    }
+    
     // Get the next player in turn
     const nextPlayerPosition = getNextPlayerInTurn(newGameState, newGameState.currentPlayerTurn);
+    console.log("Next player position:", nextPlayerPosition);
     
     // If there's no next player (all folded or all-in), end the round
     if (nextPlayerPosition === null) {
+      console.log("No next player, ending current betting round and advancing game phase");
       // End current betting round and advance to next phase
       advanceGamePhase(newGameState);
       return newGameState;
@@ -846,41 +1385,225 @@ export default function PokerRoom() {
   };
 
   /**
+   * Simulate actions for the AI opponent
+   */
+  const simulateOpponentAction = () => {
+    if (!gameState) return;
+    
+    // Get the current player's ID
+    const currentPlayer = gameState.players.find(p => p.position === gameState.currentPlayerTurn);
+    
+    // Make sure it's a bot player's turn (not the human player)
+    if (!currentPlayer || currentPlayer.id === gameState.humanPlayerId) {
+      console.log("Not opponent's turn, skipping AI action");
+      return;
+    }
+    
+    console.log("Simulating opponent action...");
+    console.log("Current betting round:", gameState.currentBettingRound);
+    console.log("Current player status:", currentPlayer.status);
+    console.log("Current player position:", currentPlayer.position);
+    console.log("Current player bet:", currentPlayer.currentBet);
+    
+    // Clear the new betting round flag when AI acts
+    gameState.isNewBettingRound = false;
+    
+    // Add a small delay to make it feel more natural
+    setTimeout(() => {
+      // Get valid actions for the opponent
+      const validActions = getValidActions(gameState);
+      console.log("Valid actions for opponent:", validActions);
+      
+      // Basic AI logic - randomly choose an action from valid ones
+      // In a real game, this would be more sophisticated based on hand strength
+      if (validActions.length === 0) {
+        console.log("No valid actions for opponent");
+        return;
+      }
+      
+      // Simple probabilities for different actions
+      const actionProbabilities: Record<PlayerAction, number> = {
+        'check': 0.7,  // 70% chance to check if possible
+        'call': 0.6,   // 60% chance to call if possible
+        'fold': 0.2,   // 20% chance to fold 
+        'bet': 0.4,    // 40% chance to bet if possible
+        'raise': 0.3,  // 30% chance to raise if possible
+        'all-in': 0.1  // 10% chance to go all-in
+      };
+      
+      // Sort actions by preference/probability
+      const sortedActions = validActions
+        .sort((a, b) => (actionProbabilities[b] || 0) - (actionProbabilities[a] || 0));
+      
+      // Choose most preferred action with some randomness
+      const randomFactor = Math.random();
+      let chosenAction: PlayerAction;
+      
+      if (randomFactor < 0.7) {
+        // 70% of time, choose most preferred action
+        chosenAction = sortedActions[0];
+      } else if (randomFactor < 0.9) {
+        // 20% of time, choose second most preferred action (if available)
+        chosenAction = sortedActions.length > 1 ? sortedActions[1] : sortedActions[0];
+      } else {
+        // 10% of time, choose random action
+        const randomIndex = Math.floor(Math.random() * sortedActions.length);
+        chosenAction = sortedActions[randomIndex];
+      }
+      
+      console.log(`Opponent chose action: ${chosenAction}`);
+      
+      // Execute the chosen action
+      if (chosenAction === 'check') {
+        handleCheckAction(gameState, currentPlayer);
+        
+        // Log current betting round after action
+        console.log(`Current betting round after check: ${gameState.currentBettingRound}`);
+        
+        // Check if this action completed the betting round
+        if (gameState.currentPlayerTurn !== currentPlayer.position) {
+          // If it's now another player's turn, check if it's the human
+          const nextPlayer = gameState.players.find(p => p.position === gameState.currentPlayerTurn);
+          if (nextPlayer && nextPlayer.id === gameState.humanPlayerId) {
+            console.log("It's now the human player's turn");
+          } else {
+            // Continue simulating AI actions for the next player
+            console.log("Continuing AI simulation for next opponent");
+            simulateOpponentAction();
+          }
+        }
+      } else if (chosenAction === 'call') {
+        handleCallAction(gameState, currentPlayer);
+        
+        // Log current betting round after action
+        console.log(`Current betting round after call: ${gameState.currentBettingRound}`);
+        
+        // Check if this action completed the betting round
+        if (gameState.currentPlayerTurn !== currentPlayer.position) {
+          // If it's now another player's turn, check if it's the human
+          const nextPlayer = gameState.players.find(p => p.position === gameState.currentPlayerTurn);
+          if (nextPlayer && nextPlayer.id === gameState.humanPlayerId) {
+            console.log("After call action, it's now the human player's turn");
+          } else {
+            // Continue simulating AI actions for the next player
+            console.log("After call action, continuing AI simulation for next opponent");
+            simulateOpponentAction();
+          }
+        }
+      } else if (chosenAction === 'fold') {
+        // Use the handleFoldAction function for consistency
+        handleFoldAction(gameState, currentPlayer);
+        
+        // Check if the game is still in progress (not everyone folded)
+        if (gameState.currentPlayerTurn !== null) {
+          // If the next player is the human, don't continue simulating
+          const nextPlayer = gameState.players.find(p => p.position === gameState.currentPlayerTurn);
+          if (nextPlayer && nextPlayer.id !== gameState.humanPlayerId) {
+            // Continue simulating next AI player
+            simulateOpponentAction();
+          }
+        }
+      } else if (chosenAction === 'bet') {
+        // Simple betting logic - bet 2x the big blind
+        const betAmount = gameState.blinds.big * 2;
+        
+        // Use the proper handleBetAction function instead of manual code
+        handleBetAction(gameState, currentPlayer, betAmount);
+        
+        // Log current betting round after action
+        console.log(`Current betting round after bet: ${gameState.currentBettingRound}`);
+        
+        // Check if this action completed the betting round
+        if (gameState.currentPlayerTurn !== currentPlayer.position) {
+          // If it's now another player's turn, check if it's the human
+          const nextPlayer = gameState.players.find(p => p.position === gameState.currentPlayerTurn);
+          if (nextPlayer && nextPlayer.id === gameState.humanPlayerId) {
+            console.log("After bet action, it's now the human player's turn");
+          } else {
+            // Continue simulating AI actions for the next player
+            console.log("After bet action, continuing AI simulation for next opponent");
+            simulateOpponentAction();
+          }
+        }
+      } else {
+        console.log(`Action ${chosenAction} not implemented for AI yet`);
+        
+        // Default to check/call if action not implemented
+        if (validActions.includes('check')) {
+          handleCheckAction(gameState, currentPlayer);
+        } else if (validActions.includes('call')) {
+          handleCallAction(gameState, currentPlayer);
+        }
+        
+        // Log current betting round after action
+        console.log(`Current betting round after default action: ${gameState.currentBettingRound}`);
+        
+        // Check if this action completed the betting round
+        if (gameState.currentPlayerTurn !== currentPlayer.position) {
+          // If it's now another player's turn, check if it's the human
+          const nextPlayer = gameState.players.find(p => p.position === gameState.currentPlayerTurn);
+          if (nextPlayer && nextPlayer.id === gameState.humanPlayerId) {
+            console.log("After default action, it's now the human player's turn");
+          } else {
+            // Continue simulating AI actions for the next player
+            console.log("After default action, continuing AI simulation for next opponent");
+            simulateOpponentAction();
+          }
+        }
+      }
+    }, 1500); // 1.5 second delay for more natural feel
+  };
+
+  /**
    * Advance the game phase after a betting round ends
    */
   const advanceGamePhase = (gameState: GameState): void => {
     // If game is not in betting phase, do nothing
     if (gameState.gamePhase !== 'betting') {
+      console.log(`Cannot advance game phase: current phase is ${gameState.gamePhase}, not 'betting'`);
       return;
     }
     
-    console.log(`Advancing game phase from ${gameState.currentBettingRound}`);
+    console.log(`Advancing game phase from ${gameState.currentBettingRound}...`);
+    
+    // Add a flag to mark this as a new betting round
+    // This will prevent immediate checking for round completion
+    gameState.isNewBettingRound = true;
     
     // Handle different betting rounds
     switch (gameState.currentBettingRound) {
       case 'pre-flop':
+        console.log("Pre-flop round complete, dealing flop...");
         // Deal the flop (first three community cards)
         dealFlop(gameState);
         gameState.currentBettingRound = 'flop';
+        console.log("Flop dealt, betting round updated to 'flop'");
         break;
         
       case 'flop':
+        console.log("Flop round complete, dealing turn...");
         // Deal the turn (fourth community card)
         dealTurn(gameState);
         gameState.currentBettingRound = 'turn';
+        console.log("Turn dealt, betting round updated to 'turn'");
         break;
         
       case 'turn':
+        console.log("Turn round complete, dealing river...");
         // Deal the river (fifth community card)
         dealRiver(gameState);
         gameState.currentBettingRound = 'river';
+        console.log("River dealt, betting round updated to 'river'");
         break;
         
       case 'river':
+        console.log("River round complete, moving to showdown...");
         // Move to showdown
         gameState.gamePhase = 'showdown';
         gameState.currentBettingRound = 'showdown';
-        // In a real game, this would evaluate hands and determine the winner
+        console.log("Game phase updated to 'showdown'");
+        // Evaluate hands and determine the winner
+        handleShowdown(gameState);
         break;
         
       default:
@@ -899,13 +1622,96 @@ export default function PokerRoom() {
       // Check if this player is still active
       if (sortedPlayers[firstToActIndex].status === 'active') {
         gameState.currentPlayerTurn = sortedPlayers[firstToActIndex].position;
+        console.log(`First player to act after dealer is at position ${gameState.currentPlayerTurn}`);
       } else {
         // Find the next active player
         gameState.currentPlayerTurn = getNextPlayerInTurn(gameState, sortedPlayers[firstToActIndex].position);
+        console.log(`First player is not active, next active player is at position ${gameState.currentPlayerTurn}`);
       }
     }
     
     console.log(`Advanced to ${gameState.currentBettingRound}, turn: ${gameState.currentPlayerTurn}`);
+  };
+
+  /**
+   * Handle the showdown phase (determine winner)
+   */
+  const handleShowdown = (gameState: GameState): void => {
+    console.log("Handling showdown...");
+    
+    // Show showdown notification
+    setGameNotification({
+      message: "Showdown!",
+      type: 'info'
+    });
+    
+    // Get active players
+    const activePlayers = gameState.players.filter(p => p.status === 'active' || p.status === 'all-in');
+    
+    if (activePlayers.length === 0) {
+      console.error("No active players at showdown");
+      return;
+    }
+    
+    // Calculate hand strength for each player
+    const playerStrengths = activePlayers.map(player => {
+      const handStrength = evaluateHandStrength(player.holeCards, gameState.communityCards);
+      return { player, handStrength };
+    });
+    
+    // Sort players by hand strength (highest first)
+    playerStrengths.sort((a, b) => b.handStrength - a.handStrength);
+    
+    // The winner is the player with the highest hand strength
+    const winner = playerStrengths[0].player;
+    const isHumanWinner = winner.id === gameState.humanPlayerId;
+    
+    console.log(`Player ${winner.id} wins the pot of ${gameState.pot} with hand strength ${playerStrengths[0].handStrength}`);
+    
+    // Award pot to winner
+    winner.chips += gameState.pot;
+    
+    // Play win sound
+    soundService.playSfx('WIN');
+    
+    // Show winning notification after a short delay
+    setTimeout(() => {
+      setGameNotification({
+        message: isHumanWinner ? `You win ${gameState.pot} chips!` : `Opponent wins ${gameState.pot} chips`,
+        type: 'success'
+      });
+      
+      // Set game as finished
+      setGameStatus('finished');
+      
+      // Begin a new hand after a delay
+      setTimeout(() => {
+        setGameNotification({ message: '', type: null });
+        startNewHand(gameState);
+      }, 3000);
+    }, 2000);
+  };
+
+  /**
+   * For a real poker game, this would evaluate hand strength
+   * This is a placeholder for a full poker hand evaluator
+   */
+  const evaluateHandStrength = (holeCards: string[], communityCards: string[]): number => {
+    // This is a simplified placeholder
+    // In a real implementation, this would determine hand ranks (pair, flush, etc.)
+    // and return a numeric score
+    
+    // Count face value cards for a very primitive evaluation
+    const allCards = [...holeCards, ...communityCards];
+    const aces = allCards.filter(card => card.startsWith('A')).length;
+    const kings = allCards.filter(card => card.startsWith('K')).length;
+    const queens = allCards.filter(card => card.startsWith('Q')).length;
+    
+    // Add some randomness for variety while giving weight to high cards
+    const baseStrength = Math.random() * 500;
+    const highCardBonus = (aces * 100) + (kings * 50) + (queens * 25);
+    
+    return baseStrength + highCardBonus;
   };
 
   /**
@@ -930,6 +1736,9 @@ export default function PokerRoom() {
     // Burn a card first (standard poker procedure)
     gameState.deck.pop();
     
+    // Play card flip sound
+    soundService.playSfx('CARD_FLIP');
+    
     // Deal three cards to the community
     for (let i = 0; i < 3; i++) {
       const card = gameState.deck.pop();
@@ -939,14 +1748,28 @@ export default function PokerRoom() {
     }
     
     console.log("Dealt flop:", gameState.communityCards);
+    
+    // Show notification for the flop
+    setGameNotification({
+      message: "The Flop",
+      type: 'info'
+    });
+    
+    // Clear notification after a delay
+    setTimeout(() => {
+      setGameNotification({ message: '', type: null });
+    }, 2000);
   };
 
   /**
    * Deal the turn (fourth community card)
    */
   const dealTurn = (gameState: GameState): void => {
-    // Burn a card first
+    // Burn a card first (standard poker procedure)
     gameState.deck.pop();
+    
+    // Play card flip sound
+    soundService.playSfx('CARD_FLIP');
     
     // Deal the turn card
     const card = gameState.deck.pop();
@@ -955,14 +1778,28 @@ export default function PokerRoom() {
     }
     
     console.log("Dealt turn:", gameState.communityCards[3]);
+    
+    // Show notification for the turn
+    setGameNotification({
+      message: "The Turn",
+      type: 'info'
+    });
+    
+    // Clear notification after a delay
+    setTimeout(() => {
+      setGameNotification({ message: '', type: null });
+    }, 2000);
   };
 
   /**
    * Deal the river (fifth community card)
    */
   const dealRiver = (gameState: GameState): void => {
-    // Burn a card first
+    // Burn a card first (standard poker procedure)
     gameState.deck.pop();
+    
+    // Play card flip sound
+    soundService.playSfx('CARD_FLIP');
     
     // Deal the river card
     const card = gameState.deck.pop();
@@ -971,6 +1808,17 @@ export default function PokerRoom() {
     }
     
     console.log("Dealt river:", gameState.communityCards[4]);
+    
+    // Show notification for the river
+    setGameNotification({
+      message: "The River",
+      type: 'info'
+    });
+    
+    // Clear notification after a delay
+    setTimeout(() => {
+      setGameNotification({ message: '', type: null });
+    }, 2000);
   };
 
   /**
@@ -1051,18 +1899,91 @@ export default function PokerRoom() {
       
       case 'call':
       case 'check':
+      case 'fold':
+        // Handle simple poker actions
+        processPlayerAction(action);
+        
+        // After player action, check if it's now the opponent's turn
+        setTimeout(() => {
+          if (gameState && gameState.currentPlayerTurn !== null) {
+            const currentPlayer = gameState.players.find(p => p.position === gameState.currentPlayerTurn);
+            if (currentPlayer && currentPlayer.id !== gameState.humanPlayerId) {
+              simulateOpponentAction();
+            }
+          }
+        }, 500); // Small delay before opponent action
+        break;
+        
       case 'bet':
       case 'raise':
-      case 'fold':
       case 'all-in':
-        // Handle poker actions
+        // Handle betting actions
         processPlayerAction(action);
+        
+        // After player action, check if it's now the opponent's turn
+        setTimeout(() => {
+          if (gameState && gameState.currentPlayerTurn !== null) {
+            const currentPlayer = gameState.players.find(p => p.position === gameState.currentPlayerTurn);
+            if (currentPlayer && currentPlayer.id !== gameState.humanPlayerId) {
+              simulateOpponentAction();
+            }
+          }
+        }, 500); // Small delay before opponent action
         break;
         
       default:
-        if (action.startsWith('bet_') || action.startsWith('all_in_')) {
-          // Handle bet amount actions
+        if (action.startsWith('bet_')) {
+          // This is when the user clicks the BET button with a specific amount
+          const betAmount = parseInt(action.split('_')[1], 10);
+          if (!isNaN(betAmount) && betAmount > 0) {
+            console.log(`Processing bet of ${betAmount}`);
+            processPlayerAction(action);
+            
+            // Check if it's now the opponent's turn
+            setTimeout(() => {
+              if (gameState && gameState.currentPlayerTurn !== null) {
+                const currentPlayer = gameState.players.find(p => p.position === gameState.currentPlayerTurn);
+                if (currentPlayer && currentPlayer.id !== gameState.humanPlayerId) {
+                  simulateOpponentAction();
+                }
+              }
+            }, 500);
+          } else {
+            // Just updating the bet amount in UI, not processing action yet
+            console.log(`Bet amount updated to ${betAmount} - waiting for BET button click`);
+          }
+        } else if (action.startsWith('raise_')) {
+          // This is when the user clicks the RAISE button with a specific amount
+          const raiseAmount = parseInt(action.split('_')[1], 10);
+          if (!isNaN(raiseAmount) && raiseAmount > 0) {
+            console.log(`Processing raise of ${raiseAmount}`);
+            processPlayerAction(action);
+            
+            // Check if it's now the opponent's turn
+            setTimeout(() => {
+              if (gameState && gameState.currentPlayerTurn !== null) {
+                const currentPlayer = gameState.players.find(p => p.position === gameState.currentPlayerTurn);
+                if (currentPlayer && currentPlayer.id !== gameState.humanPlayerId) {
+                  simulateOpponentAction();
+                }
+              }
+            }, 500);
+          } else {
+            // Just updating the raise amount in UI, not processing action yet
+            console.log(`Raise amount updated to ${raiseAmount} - waiting for RAISE button click`);
+          }
+        } else if (action.startsWith('all_in_')) {
           processPlayerAction(action);
+          
+          // Check for opponent's turn after all-in
+          setTimeout(() => {
+            if (gameState && gameState.currentPlayerTurn !== null) {
+              const currentPlayer = gameState.players.find(p => p.position === gameState.currentPlayerTurn);
+              if (currentPlayer && currentPlayer.id !== gameState.humanPlayerId) {
+                simulateOpponentAction();
+              }
+            }
+          }, 500);
         } else {
           console.log("Action not implemented:", action);
         }
@@ -1106,6 +2027,17 @@ export default function PokerRoom() {
     }
   }, [gameState, updateActionButtons]);
 
+  // Add a function to determine if there's an existing bet higher than blinds
+  const hasExistingBet = useCallback((gameState: GameState | null): boolean => {
+    if (!gameState) return false;
+    
+    // Get highest bet at the table
+    const highestBet = Math.max(...gameState.players.map(p => p.currentBet));
+    
+    // Check if highest bet is higher than the big blind
+    return highestBet > gameState.blinds.big;
+  }, []);
+
   return (
     <div className="relative min-h-screen w-full overflow-hidden"
          style={{
@@ -1122,6 +2054,17 @@ export default function PokerRoom() {
       <div className="absolute top-5 right-[120px] bg-black/70 text-white px-4 py-2 rounded-lg z-50">
         Status: {gameStatus} {gameState && `(Players: ${gameState.players.length})`}
       </div>
+      
+      {/* Game notification */}
+      {gameNotification.type && (
+        <div className={`absolute top-20 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-lg z-50 animate-fade-in-down text-white font-bold text-xl ${
+          gameNotification.type === 'success' ? 'bg-green-600/90' :
+          gameNotification.type === 'error' ? 'bg-red-600/90' :
+          'bg-blue-600/90' // info
+        }`}>
+          {gameNotification.message}
+        </div>
+      )}
       
       {/* Game information - only shown for tournaments */}
       {playerData.gameType === 'tournament' && (
@@ -1152,10 +2095,33 @@ export default function PokerRoom() {
           
           {/* Pot display in the middle of the table */}
           {gameState && gameState.pot > 0 && (
-            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20">
-              <div className="bg-black/70 text-white px-4 py-2 rounded-full flex items-center">
+            <div className="absolute top-[-15%] left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20">
+              <div className="text-black bg-white px-4 py-2 rounded-full flex items-center">
                 <span className="mr-2 font-bold">POT:</span>
                 <span className="text-xl font-bold">{gameState.pot}</span>
+              </div>
+            </div>
+          )}
+          
+          {/* Community cards on the table */}
+          {gameState && gameState.communityCards.length > 0 && (
+            <div className="absolute top-[40%] left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20">
+              <div className="flex justify-center" style={{ gap: "12px" }}>
+                {/* Only map existing cards - no empty placeholders */}
+                {gameState.communityCards.map((card, index) => (
+                  <div key={`community-card-${index}`} className="w-[75px]">
+                    <Image 
+                      src={getCardImagePath(card) || ''}
+                      alt={`Card ${index+1}`}
+                      width={75}
+                      height={110}
+                      priority
+                      unoptimized={true}
+                      style={{ height: "auto", width: "auto" }}
+                      className="rounded-md"
+                    />
+                  </div>
+                ))}
               </div>
             </div>
           )}
@@ -1252,51 +2218,57 @@ export default function PokerRoom() {
                 </div>
               )}
 
-              {/* Small blind chip */}
-              {player.isSmallBlind && player.currentBet > 0 && (
+              {/* All player bets and blinds with chip visualization */}
+              {player.currentBet > 0 && (
                 <div
                   className="absolute z-30"
                   style={{
-                    top: getChipPosition(player.position).top,
-                    left: getChipPosition(player.position).left,
+                    // Use different positions for blinds vs regular bets
+                    top: (player.isSmallBlind || player.isBigBlind) 
+                      ? getChipPosition(player.position, 'blind').top 
+                      : getChipPosition(player.position, 'bet').top,
+                    left: (player.isSmallBlind || player.isBigBlind) 
+                      ? getChipPosition(player.position, 'blind').left 
+                      : getChipPosition(player.position, 'bet').left,
                   }}
                 >
                   <div className="relative">
-                    <Image
-                      src="/red-chip.svg"
-                      alt="Small Blind"
-                      width={40}
-                      height={40}
-                      priority
-                      style={{ height: "auto", width: "auto" }}
-                    />
-                    <div className="absolute inset-0 flex items-center justify-center text-white text-xs font-bold">
-                      {gameState.blinds.small}
+                    {/* Stack of chips with the top chip showing the bet amount */}
+                    <div className="relative">
+                      {/* Bottom chip (if bet is large enough) */}
+                      {player.currentBet >= CHIP_VALUES.BLUE * 2 && (
+                        <Image
+                          src={player.currentBet >= CHIP_VALUES.GREEN ? "/green-chip.svg" : "/blue-chip.svg"}
+                          alt="Bottom Chip"
+                          width={40}
+                          height={40}
+                          priority
+                          className="absolute -bottom-1 -left-1"
+                          style={{ height: "auto", width: "auto" }}
+                        />
+                      )}
+                      
+                      {/* Main chip */}
+                      <Image
+                        src={
+                          player.currentBet >= CHIP_VALUES.GREEN ? "/green-chip.svg" :
+                          player.currentBet >= CHIP_VALUES.YELLOW ? "/yellow-chip.svg" :
+                          player.currentBet >= CHIP_VALUES.BLUE ? "/blue-chip.svg" :
+                          "/red-chip.svg"
+                        }
+                        alt={player.isSmallBlind ? "Small Blind" : player.isBigBlind ? "Big Blind" : "Bet"}
+                        width={40}
+                        height={40}
+                        priority
+                        style={{ height: "auto", width: "auto" }}
+                      />
                     </div>
-                  </div>
-                </div>
-              )}
 
-              {/* Big blind chip */}
-              {player.isBigBlind && player.currentBet > 0 && (
-                <div
-                  className="absolute z-30"
-                  style={{
-                    top: getChipPosition(player.position).top,
-                    left: getChipPosition(player.position).left,
-                  }}
-                >
-                  <div className="relative">
-                    <Image
-                      src="/blue-chip.svg"
-                      alt="Big Blind"
-                      width={40}
-                      height={40}
-                      priority
-                      style={{ height: "auto", width: "auto" }}
-                    />
-                    <div className="absolute inset-0 flex items-center justify-center text-white text-xs font-bold">
-                      {gameState.blinds.big}
+                    {/* Bet amount label */}
+                    <div className="absolute -top-5 left-1/2 transform -translate-x-1/2 z-10">
+                      <div className="bg-black/70 text-white px-1.5 py-0.5 rounded-md text-xs font-bold whitespace-nowrap">
+                        {player.currentBet}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1360,7 +2332,12 @@ export default function PokerRoom() {
       </div>
       
       {/* Poker Controls */}
-      <PokerControl onAction={handleAction} playerChips={playerData.chips} avatarIndex={playerData.avatarIndex} />
+      <PokerControl 
+        onAction={handleAction} 
+        playerChips={playerData.chips} 
+        avatarIndex={playerData.avatarIndex}
+        existingBet={hasExistingBet(gameState)}
+      />
       
       {/* Add styles to handle responsive behavior */}
       <style jsx global>{`
@@ -1369,6 +2346,34 @@ export default function PokerRoom() {
             width: 100% !important;
             min-width: 0 !important;
           }
+        }
+      `}</style>
+      
+      {/* Add CSS for transitions */}
+      <style jsx global>{`
+        .poker-table-container {
+          transition: all 0.8s ease-in-out;
+        }
+        
+        .game-transition-out {
+          opacity: 0.6;
+          transform: scale(0.95);
+        }
+        
+        .game-transition-in {
+          opacity: 1;
+          transform: scale(1);
+          transition: all 0.8s ease-in-out;
+        }
+        
+        @keyframes fade-in-scale {
+          0% { opacity: 0.6; transform: scale(0.95); }
+          100% { opacity: 1; transform: scale(1); }
+        }
+        
+        @keyframes fade-out-scale {
+          0% { opacity: 1; transform: scale(1); }
+          100% { opacity: 0.6; transform: scale(0.95); }
         }
       `}</style>
     </div>

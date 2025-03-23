@@ -1,6 +1,10 @@
+"use client";
+
 import Image from 'next/image';
 import { useState } from 'react';
 import { Exo } from 'next/font/google';
+import { LeoConnectButton } from './LeoConnectButton';
+import SoundToggle from './SoundToggle';
 
 const exo = Exo({
   subsets: ['latin'],
@@ -70,25 +74,18 @@ export default function Header({ onToggleMode }: HeaderProps) {
       </div>
       
       <div className="flex items-center space-x-4">
-        {/* Speaker button in frame */}
+        {/* Sound Toggle component in frame */}
         <div className="relative w-[48px] h-[48px] flex items-center justify-center">
           <svg xmlns="http://www.w3.org/2000/svg" width="52" height="52" viewBox="0 0 52 52" fill="none" className="absolute">
             <path d="M42 51H10C5.02944 51 1 46.9706 1.00001 42L1.00006 9.99998C1.00007 5.02942 5.02951 0.999996 10.0001 0.999996H42C46.9706 0.999996 51 5.02944 51 10V42C51 46.9706 46.9706 51 42 51Z" stroke="#253E5C" strokeWidth="2"/>
           </svg>
-          <button className="z-10">
-            <Image src="/speaker-button.svg" alt="Speaker" width={28} height={28} style={{ height: "auto", width: "auto" }} />
-          </button>
+          <div className="z-10">
+            <SoundToggle />
+          </div>
         </div>
         
         {/* Connect wallet button */}
-        <button 
-          className={`h-[48px] px-[12px] py-[10px] flex items-center gap-[10px] rounded-[8px] border-2 border-[rgba(142,255,196,0.7)] text-black font-bold ${exo.className}`}
-          style={{
-            background: 'linear-gradient(180deg, #4DF0B4 16.65%, #25976C 100%)'
-          }}
-        >
-          CONNECT WALLET
-        </button>
+        <LeoConnectButton />
       </div>
     </header>
   );

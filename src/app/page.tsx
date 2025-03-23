@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import { Exo } from 'next/font/google';
+import soundService from '@/services/SoundService';
 
 const exo = Exo({
   subsets: ['latin'],
@@ -14,6 +15,22 @@ const exo = Exo({
 
 export default function Dashboard() {
   const [hyperTurbo, setHyperTurbo] = useState(true);
+
+  // Initialize background music when the component mounts
+  useEffect(() => {
+    soundService.preloadSounds();
+    soundService.playMusic('LOBBY');
+    
+    // Cleanup on unmount
+    return () => {
+      soundService.stopMusic();
+    };
+  }, []);
+
+  // Play button click sound
+  const playButtonSound = () => {
+    soundService.playSfx('BUTTON_CLICK');
+  };
 
   return (
     <div className="flex flex-col min-h-screen bg-[#0E1C2E]">
@@ -25,7 +42,7 @@ export default function Dashboard() {
         {/* Sidebar */}
         <div className={`w-[271px] min-w-[271px] bg-[#112237] ${exo.className}`}>
           <div className="flex flex-col p-5 space-y-4">
-            <Link href="/" className="relative w-full h-[54px]">
+            <Link href="/" className="relative w-full h-[54px]" onClick={playButtonSound}>
               <div className="w-full h-[54px] absolute bg-white/5 rounded-[13px]">
                 <div className="absolute left-[18px] top-[11px] text-white text-2xl font-bold">HOME</div>
               </div>
@@ -33,12 +50,14 @@ export default function Dashboard() {
             <Link 
               href="/tournaments"
               className="flex items-center px-[18px] py-[11px] text-white text-2xl font-bold hover:bg-white/5 rounded-[13px]"
+              onClick={playButtonSound}
             >
               TOURNAMENTS
             </Link>
             <Link 
               href="/cash-games"
               className="flex items-center px-[18px] py-[11px] text-white text-2xl font-bold hover:bg-white/5 rounded-[13px]"
+              onClick={playButtonSound}
             >
               CASH GAMES
             </Link>
@@ -46,19 +65,32 @@ export default function Dashboard() {
         </div>
         
         {/* Main Area */}
-        <div className="flex-1 flex justify-center items-center p-8">
+        <div className="flex-1 flex justify-center items-center p-8 relative">
+          {/* Background Image */}
+         
+          
           <div className="w-full max-w-[1281px] h-[793px] relative mx-auto">
             {/* Main content background */}
             <div className="w-full h-[698px] absolute left-0 top-0 bg-[#142030] rounded-tl-3xl rounded-tr-3xl">
               {/* Quick Game Panel */}
+                  <div className="absolute inset-0 w-full h-full">
+                    <Image 
+                      src="/dashboard-bg.png" 
+                      alt="Dashboard Background" 
+                      layout="fill"
+                      objectFit="cover"
+                      priority
+                    />
+                  </div>
               <div className="absolute bottom-[64px] right-[64px] w-[600px]">
                 <div className="text-left">
-                  <div className="flex flex-col text-left mb-2 p-[32px] bg-white/5 rounded-[13px]">
+                  <div className="flex flex-col text-left mb-2 p-[32px] bg-white/5 rounded-[13px] backdrop-filter backdrop-blur-lg">
+                  
                     <h2 className={`text-white/80 text-[16px] font-bold mb-4 ${exo.className}`}>Select Avatar</h2>
                     
                     {/* Avatar Selection - All 5 avatars */}
                     <div className="flex justify-between gap-4">
-                      <div className="w-20 h-20 rounded-full overflow-hidden">
+                      <div className="w-20 h-20 rounded-full border-3 border-[#55ffbe] overflow-hidden">
                         <Image 
                           src="/avatar1.png" 
                           alt="Avatar 1" 
@@ -108,7 +140,7 @@ export default function Dashboard() {
                   </div>
                   
                   {/* Enter Amount */}
-                  <div className="p-[32px] bg-white/5 rounded-[13px]">
+                  <div className="p-[32px] bg-white/5 rounded-[13px] backdrop-filter backdrop-blur-lg">
                     <h2 className={`text-white/80 text-[16px] font-bold mb-4 ${exo.className}`}>Enter Amount</h2>
                     <div className="flex items-center">
                       <div className="flex-1">
@@ -123,7 +155,10 @@ export default function Dashboard() {
                           {['5', '10', '50', 'MAX'].map((value) => (
                             <div 
                               key={value}
-                              className="w-[83px] h-12 px-[37px] py-2.5 bg-white/5 rounded-[13px] outline-2 outline-[#e7e7e7]/20 inline-flex justify-center items-center gap-2.5"
+                              className="w-[83px] h-12 px-[37px] py-2.5 bg-white/5 rounded-[13px] outline-2 outline-[#e7e7e7]/20 inline-flex justify-center items-center gap-2.5 cursor-pointer"
+                              onClick={() => {
+                                soundService.playSfx('BUTTON_CLICK');
+                              }}
                             >
                               <div className={`text-center text-white text-lg font-bold ${exo.className}`}>
                                 {value}
@@ -133,7 +168,12 @@ export default function Dashboard() {
                         </div>
                       </div>
                       {/* Play Button */}
-                      <div className="flex items-center">
+                      <div 
+                        className="flex items-center cursor-pointer" 
+                        onClick={() => {
+                          soundService.playSfx('BUTTON_CLICK');
+                        }}
+                      >
                         <Image 
                           src="/play-button.svg" 
                           alt="Play" 
@@ -170,7 +210,10 @@ export default function Dashboard() {
                     id="hyperTurbo"
                     className="sr-only"
                     checked={hyperTurbo}
-                    onChange={() => setHyperTurbo(!hyperTurbo)}
+                    onChange={() => {
+                      soundService.playSfx('BUTTON_CLICK');
+                      setHyperTurbo(!hyperTurbo);
+                    }}
                   />
                   <div 
                     className={`flex w-[50px] h-[28px] p-[2px] items-center ${
@@ -188,11 +231,11 @@ export default function Dashboard() {
           </div>
 
           {/* Floating Sponsor Logos */}
-          <div className="absolute bottom-12 left-7/12 transform -translate-x-1/2 flex justify-center items-center gap-16 flex-wrap">
-            <Image src="/provable-logo.svg" alt="Provable" width={120} height={40} style={{ height: "auto", width: "auto" }} />
-            <Image src="/aleo-logo.svg" alt="Aleo" width={100} height={30} style={{ height: "auto", width: "auto"  }} />
-            <Image src="/ethglobal-logo.svg" alt="ETHGlobal" width={120} height={40} style={{ height: "auto", width: "auto" }} />
-            <Image src="/cursor-logo.svg" alt="Cursor" width={100} height={30} style={{ height: "auto", width: "auto" }} />
+          <div className="absolute bottom-12 left-1/2 transform -translate-x-1/2 flex justify-center items-center space-x-4 md:space-x-8 lg:space-x-16 w-full max-w-4xl px-4">
+            <Image src="/provable-logo.svg" alt="Provable" width={120} height={40} className="w-auto h-5 sm:h-6 md:h-8 lg:h-10" />
+            <Image src="/aleo-logo.svg" alt="Aleo" width={100} height={30} className="w-auto h-5 sm:h-6 md:h-7 lg:h-8" />
+            <Image src="/ethglobal-logo.svg" alt="ETHGlobal" width={120} height={40} className="w-auto h-5 sm:h-6 md:h-8 lg:h-10" />
+            <Image src="/cursor-logo.svg" alt="Cursor" width={100} height={30} className="w-auto h-4 sm:h-5 md:h-6 lg:h-7" />
           </div>
         </div>
       </div>
