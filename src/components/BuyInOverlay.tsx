@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Image from 'next/image';
 import { Exo } from 'next/font/google';
 
@@ -68,7 +68,7 @@ export default function BuyInOverlay({
   };
   
   // Update slider position based on mouse position
-  const updateSliderFromClientX = (clientX: number) => {
+  const updateSliderFromClientX = useCallback((clientX: number) => {
     if (sliderRef.current) {
       const rect = sliderRef.current.getBoundingClientRect();
       const position = clientX - rect.left;
@@ -77,7 +77,7 @@ export default function BuyInOverlay({
       const newAmount = Math.round(minBuyIn + (percentage / 100) * (maxBuyIn - minBuyIn));
       setBuyInAmount(newAmount);
     }
-  };
+  }, [minBuyIn, maxBuyIn]);
   
   // Add global mouse event listeners for dragging
   useEffect(() => {
@@ -101,7 +101,7 @@ export default function BuyInOverlay({
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isDragging]);
+  }, [isDragging, updateSliderFromClientX]);
   
   // Set to minimum buy-in
   const handleMinClick = () => {

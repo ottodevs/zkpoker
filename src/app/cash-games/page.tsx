@@ -55,7 +55,7 @@ export default function CashGames() {
     
     // In a real app, you'd likely store this information in a state management solution
     // For now, we'll redirect to a poker room with query params
-    router.push(`/poker-room?avatar=${avatarIndex}&chips=${amount}&blinds=${selectedGame?.blinds}`);
+    router.push(`/poker-room?avatar=${avatarIndex}&chips=${amount}&blinds=${selectedGame?.blinds}&gameType=cash`);
   };
 
   return (

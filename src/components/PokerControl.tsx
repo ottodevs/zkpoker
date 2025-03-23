@@ -156,28 +156,46 @@ export default function PokerControl({ onAction, playerChips = 2300, avatarIndex
   useEffect(() => {
     console.log("PokerControl received avatarIndex:", avatarIndex);
     console.log("Avatar path should be:", `/avatar${avatarIndex + 1}.png`);
-  }, [avatarIndex]);
+    console.log("Player chips:", playerChips);
+  }, [avatarIndex, playerChips]);
   
   const sliderContainerRef = useRef<HTMLDivElement>(null);
-  const maxBet = 10000;
+  // Use player's chips as the maximum bet instead of hardcoded value
+  const maxBet = playerChips;
 
   // Update slider position from bet amount
   const updatePositionFromBet = useCallback((bet: string | number) => {
     const numValue = typeof bet === 'string' ? parseInt(bet, 10) || 0 : bet;
-    const percentage = Math.min((numValue / maxBet) * 100, 100);
+    // Make sure bet cannot exceed player chips
+    const cappedBet = Math.min(numValue, playerChips);
+    const percentage = Math.min((cappedBet / maxBet) * 100, 100);
     setSliderPosition(percentage);
-  }, [maxBet]);
+    
+    // Update bet amount if it was capped
+    if (numValue !== cappedBet && typeof bet === 'string') {
+      setBetAmount(cappedBet.toString());
+    }
+  }, [maxBet, playerChips]);
 
   const handleBetChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     // Only allow numeric input
     const value = e.target.value.replace(/[^0-9]/g, '');
-    setBetAmount(value);
+    
+    // Cap the bet at player's available chips
+    const numericValue = parseInt(value, 10) || 0;
+    const cappedValue = Math.min(numericValue, playerChips);
+    
+    // Set the capped value
+    setBetAmount(cappedValue.toString());
+    
     // If user manually changes bet, they're no longer all-in
-    setIsAllIn(false);
-    onAction(`bet_${value}`);
+    setIsAllIn(cappedValue === playerChips);
+    
+    // Tell the poker room about the bet change
+    onAction(`bet_${cappedValue}`);
     
     // Update slider position when input changes
-    updatePositionFromBet(value);
+    updatePositionFromBet(cappedValue);
   };
 
   const updateSliderPosition = useCallback((clientX: number) => {
@@ -188,14 +206,16 @@ export default function PokerControl({ onAction, playerChips = 2300, avatarIndex
       
       setSliderPosition(percentage);
       
-      // Update bet amount based on slider position
-      const newBet = Math.floor((percentage / 100) * maxBet);
+      // Update bet amount based on slider position, capped at player chips
+      const newBet = Math.min(Math.floor((percentage / 100) * maxBet), playerChips);
       setBetAmount(newBet.toString());
-      // If user moves slider, they're no longer all-in
-      setIsAllIn(false);
+      
+      // If the bet equals max chips, it's an all-in
+      setIsAllIn(newBet === playerChips);
+      
       onAction(`bet_${newBet}`);
     }
-  }, [maxBet, onAction]);
+  }, [maxBet, onAction, playerChips]);
 
   const handleSliderClick = (e: React.MouseEvent<HTMLDivElement>) => {
     // Only handle direct clicks, not drag events
@@ -270,10 +290,6 @@ export default function PokerControl({ onAction, playerChips = 2300, avatarIndex
                   unoptimized={true}
                   priority
                 />
-              </div>
-              {/* Debug text for avatar index */}
-              <div className="absolute -bottom-6 left-0 right-0 text-center text-white text-xs">
-                Avatar: {avatarIndex}
               </div>
             </div>
           </div>
