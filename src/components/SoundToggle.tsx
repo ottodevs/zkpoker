@@ -13,7 +13,8 @@ export default function SoundToggle() {
 
   // Initialize sound service when component mounts
   useEffect(() => {
-    soundService.preloadSounds();
+    // Remove preloading from here since the dashboard already does it
+    // soundService.preloadLobbyMusic();
     
     // Add click outside listener to close dropdown
     const handleClickOutside = (event: MouseEvent) => {
@@ -54,7 +55,7 @@ export default function SoundToggle() {
     <div className="relative" ref={dropdownRef}>
       <button 
         onClick={toggleDropdown}
-        className="w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+        className="w-10 h-10 flex items-center justify-center rounded-full transition-colors"
         aria-label="Sound settings"
       >
         {isMuted ? (

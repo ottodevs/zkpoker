@@ -7,14 +7,15 @@ const MUSIC = {
 };
 
 const SFX = {
-  CARD_DEAL: '/sounds/sfx/card_deal.mp3',
-  CARD_FLIP: '/sounds/sfx/card_flip.mp3',
+  CLICKFX: '/sounds/sfx/clickfx.mp3',
+  CARD_DEAL: '/sounds/sfx/deal.mp3',
+  CARD_FLIP: '/sounds/sfx/flopcard.mp3',
   CHIP_STACK: '/sounds/sfx/chip_stack.mp3',
-  BUTTON_CLICK: '/sounds/sfx/button_click.mp3',
+  BUTTON_CLICK: '/sounds/sfx/clickfx.mp3',
   BET: '/sounds/sfx/bet.mp3',
-  CHECK: '/sounds/sfx/check.mp3',
-  CALL: '/sounds/sfx/call.mp3',
-  RAISE: '/sounds/sfx/raise.mp3',
+  CHECK: '/sounds/sfx/clickfx.mp3',
+  CALL: '/sounds/sfx/smallbet.mp3',
+  RAISE: '/sounds/sfx/bet.mp3',
   FOLD: '/sounds/sfx/fold.mp3',
   WIN: '/sounds/sfx/win.mp3',
 };
@@ -29,7 +30,6 @@ class SoundService {
   private sfxVolume: number = 0.5;
   private soundsLoaded: boolean = false;
   private sounds: Map<string, Howl> = new Map();
-  private filesExist: boolean = false;
 
   private constructor() {
     // Private constructor for singleton
@@ -42,56 +42,63 @@ class SoundService {
     return SoundService.instance;
   }
 
-  // Check if a file exists
-  private async fileExists(url: string): Promise<boolean> {
+  // Create a sound with error handling
+  private createSound(key: string, path: string, options: Partial<{
+    html5: boolean;
+    volume: number;
+    loop: boolean;
+    preload: boolean;
+  }> = {}) {
     try {
-      const response = await fetch(url, { method: 'HEAD' });
-      return response.ok;
-    } catch (error) {
-      console.warn(`Error checking if file exists: ${url}`, error);
-      return false;
-    }
-  }
-
-  // Preload all sounds
-  public preloadSounds() {
-    if (this.soundsLoaded) return;
-    
-    // Create sounds with error handling
-    const createSound = (key: string, path: string, options: any) => {
       const sound = new Howl({
         src: [path],
         ...options,
         onloaderror: () => {
           console.warn(`Failed to load sound: ${path}`);
+          this.sounds.delete(key); // Remove failed sound from the map
         }
       });
       
       this.sounds.set(key, sound);
-    };
+    } catch (error) {
+      console.warn(`Error creating sound for ${path}:`, error);
+    }
+  }
 
-    // Load music
-    Object.entries(MUSIC).forEach(([key, path]) => {
-      createSound(key, path, {
-        html5: true,
-        volume: this.musicVolume,
-        loop: true,
-        preload: true,
-      });
+  // Preload lobby music only
+  public preloadLobbyMusic() {
+    // Only load if not already loaded
+    if (this.sounds.has('LOBBY')) return;
+    
+    this.createSound('LOBBY', MUSIC.LOBBY, {
+      html5: true,
+      volume: this.musicVolume,
+      loop: true,
+      preload: true,
+    });
+  }
+
+  // Preload all game sounds (for use in the poker room)
+  public preloadGameSounds() {
+    if (this.soundsLoaded) return;
+    
+    // Load table music
+    this.createSound('TABLE', MUSIC.TABLE, {
+      html5: true,
+      volume: this.musicVolume,
+      loop: true,
+      preload: true,
     });
 
     // Load sound effects
     Object.entries(SFX).forEach(([key, path]) => {
-      createSound(key, path, {
+      this.createSound(key, path, {
         volume: this.sfxVolume,
         preload: true,
       });
     });
 
     this.soundsLoaded = true;
-    
-    // Log a notice for the user about missing sound files
-    console.info('Sound system initialized. To hear sounds, you need to add sound files to the public/sounds directory.');
   }
 
   // Play background music
@@ -105,8 +112,6 @@ class SoundService {
     if (music) {
       music.play();
       currentMusic = music;
-    } else {
-      console.warn(`Music ${type} not found`);
     }
   }
 
@@ -118,15 +123,13 @@ class SoundService {
     }
   }
 
-  // Play a sound effect
+  // Play a sound effect with error handling
   public playSfx(type: keyof typeof SFX) {
     if (this.muted) return;
     
     const sound = this.sounds.get(type);
     if (sound) {
       sound.play();
-    } else {
-      console.warn(`Sound effect ${type} not found`);
     }
   }
 

@@ -1,6 +1,7 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 "use client";
 
-import React, { useCallback, useEffect, useRef, useMemo } from "react";
+import React, { useCallback, useEffect, useRef, useMemo, Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import PokerControl from "@/components/PokerControl";
@@ -54,6 +55,14 @@ interface GameState {
 type PlayerAction = 'check' | 'call' | 'bet' | 'raise' | 'fold' | 'all-in';
 
 export default function PokerRoom() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <PokerRoomContent />
+    </Suspense>
+  );
+}
+
+function PokerRoomContent() {
   const searchParams = useSearchParams();
   
   // Player data from URL params
@@ -175,6 +184,8 @@ export default function PokerRoom() {
     setGameState(newGameState);
     
     console.log("Game started successfully!", newGameState);
+    
+    // We'll handle opponent AI action in a separate useEffect
   }, [gameState, setGameStatus, shuffleDeck, setGameState]);
   
   // Add a simulated opponent for testing
@@ -272,7 +283,7 @@ export default function PokerRoom() {
     }
     
     // Initialize table music and sounds
-    soundService.preloadSounds();
+    soundService.preloadGameSounds();
     soundService.playMusic('TABLE');
     
     if (searchParams) {
@@ -726,66 +737,70 @@ export default function PokerRoom() {
   const startNewHand = (gameState: GameState) => {
     console.log("Starting a new hand...");
     
-    // Reset player statuses first without showing empty UI
-    gameState.players.forEach(player => {
-      player.status = 'active';
+    // Reset the game state but keep players at the table
+    const newGameState = { ...gameState };
+    
+    // Reset game properties
+    newGameState.pot = 0;
+    newGameState.sidePots = [];
+    newGameState.communityCards = [];
+    newGameState.currentBettingRound = null;
+    newGameState.currentPlayerTurn = null;
+    newGameState.gamePhase = 'waiting';
+    
+    // Reset all players' states
+    newGameState.players.forEach(player => {
+      player.holeCards = [];
       player.currentBet = 0;
+      player.status = 'active';
     });
     
-    // Reset game state
-    gameState.pot = 0;
-    gameState.communityCards = []; // Clear cards immediately
-    gameState.sidePots = [];
-    gameState.currentBettingRound = null;
-    gameState.gamePhase = 'waiting';
+    // Rotate dealer, SB, BB positions for the next hand
+    rotateTablePositions(newGameState);
     
-    // Update the UI to clear cards and pot before animation
-    setGameState({ ...gameState });
+    // Create and shuffle a fresh deck for the new hand
+    const suits = ['h', 'd', 'c', 's']; // hearts, diamonds, clubs, spades
+    const values = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+    const freshDeck = suits.flatMap(suit => values.map(value => `${value}${suit}`));
+    newGameState.deck = shuffleDeck(freshDeck);
     
-    // Start transition animation after UI has updated
+    // Update game state
+    setGameState(newGameState);
+    
+    // Reset game notification
+    setGameNotification({ message: '', type: null });
+    
+    // Start a new hand after a short delay
     setTimeout(() => {
-      // Add transition class to indicate game ending
-      const gameContainer = document.querySelector('.poker-table-container');
-      if (gameContainer) {
-        gameContainer.classList.add('game-transition-out');
-      }
+      // Update game status
+      setGameStatus('playing');
       
-      // Wait a short time for animation to happen
+      // Deal cards to players
+      dealHoleCards(newGameState);
+      
+      // Set current player turn (after big blind)
+      setCurrentPlayerTurn(newGameState);
+      
+      // Update game phase and betting round
+      newGameState.gamePhase = 'betting';
+      newGameState.currentBettingRound = 'pre-flop';
+      
+      // Show notification for new hand
+      setGameNotification({
+        message: "New Hand Dealt",
+        type: 'info'
+      });
+      
+      // Clear notification after a delay
       setTimeout(() => {
-        // Clear hole cards during the animation when table is faded
-        gameState.players.forEach(player => {
-          player.holeCards = [];
-        });
-        
-        // Rotate dealer position
-        rotateTablePositions(gameState);
-        
-        // Shuffle the deck
-        gameState.deck = shuffleDeck([...gameState.deck]);
-        
-        // Update the UI with empty cards but new positions
-        setGameState({ ...gameState });
-        
-        // Complete the transition and start new game
-        setTimeout(() => {
-          // Remove transition class
-          if (gameContainer) {
-            gameContainer.classList.remove('game-transition-out');
-            gameContainer.classList.add('game-transition-in');
-          }
-          
-          console.log("Dealing new hand...");
-          startGame(gameState);
-          
-          // Remove the in transition class after animation completes
-          setTimeout(() => {
-            if (gameContainer) {
-              gameContainer.classList.remove('game-transition-in');
-            }
-          }, 1000);
-        }, 500);
-      }, 300);
-    }, 100);
+        setGameNotification({ message: '', type: null });
+      }, 2000);
+      
+      // Update game state
+      setGameState({ ...newGameState });
+      
+      // AI action will be handled by the useEffect
+    }, 1000);
   };
 
   /**
@@ -1385,9 +1400,55 @@ export default function PokerRoom() {
   };
 
   /**
+   * Get valid actions for the current player
+   */
+  const getValidActions = useCallback((gameState: GameState): PlayerAction[] => {
+    if (!gameState || gameState.currentPlayerTurn === null) {
+      return [];
+    }
+    
+    const currentPlayer = gameState.players.find(p => p.position === gameState.currentPlayerTurn);
+    if (!currentPlayer) return [];
+    
+    const validActions: PlayerAction[] = ['fold'];
+    
+    // Find the highest bet at the table
+    const highestBet = Math.max(...gameState.players.map(p => p.currentBet));
+    
+    // If no one has bet yet or player has matched the highest bet, they can check
+    if (highestBet === 0 || currentPlayer.currentBet === highestBet) {
+      validActions.push('check');
+    }
+    
+    // If there's a bet to call and player has enough chips
+    if (highestBet > currentPlayer.currentBet && currentPlayer.chips > highestBet - currentPlayer.currentBet) {
+      validActions.push('call');
+    }
+    
+    // If player has enough chips to bet or raise
+    if (currentPlayer.chips > 0) {
+      // If no bet yet, player can bet
+      if (highestBet === 0) {
+        validActions.push('bet');
+      } 
+      // If there's already a bet, player can raise if they have enough chips
+      else if (currentPlayer.chips > highestBet - currentPlayer.currentBet + gameState.minBet) {
+        validActions.push('raise');
+      }
+    }
+    
+    // All-in is always an option if player has chips
+    if (currentPlayer.chips > 0) {
+      validActions.push('all-in');
+    }
+    
+    return validActions;
+  }, []);
+
+  /**
    * Simulate actions for the AI opponent
    */
-  const simulateOpponentAction = () => {
+  const simulateOpponentAction = useCallback(() => {
     if (!gameState) return;
     
     // Get the current player's ID
@@ -1552,7 +1613,7 @@ export default function PokerRoom() {
         }
       }
     }, 1500); // 1.5 second delay for more natural feel
-  };
+  }, [gameState, getValidActions, handleCheckAction, handleCallAction, handleFoldAction, handleBetAction]);
 
   /**
    * Advance the game phase after a betting round ends
@@ -1737,7 +1798,7 @@ export default function PokerRoom() {
     gameState.deck.pop();
     
     // Play card flip sound
-    soundService.playSfx('CARD_FLIP');
+    soundService.playSfx('CARD_DEAL');
     
     // Deal three cards to the community
     for (let i = 0; i < 3; i++) {
@@ -1831,52 +1892,6 @@ export default function PokerRoom() {
     if (!player) return false;
     
     return player.position === gameState.currentPlayerTurn;
-  }, []);
-
-  /**
-   * Get valid actions for the current player
-   */
-  const getValidActions = useCallback((gameState: GameState): PlayerAction[] => {
-    if (!gameState || gameState.currentPlayerTurn === null) {
-      return [];
-    }
-    
-    const currentPlayer = gameState.players.find(p => p.position === gameState.currentPlayerTurn);
-    if (!currentPlayer) return [];
-    
-    const validActions: PlayerAction[] = ['fold'];
-    
-    // Find the highest bet at the table
-    const highestBet = Math.max(...gameState.players.map(p => p.currentBet));
-    
-    // If no one has bet yet or player has matched the highest bet, they can check
-    if (highestBet === 0 || currentPlayer.currentBet === highestBet) {
-      validActions.push('check');
-    }
-    
-    // If there's a bet to call and player has enough chips
-    if (highestBet > currentPlayer.currentBet && currentPlayer.chips > highestBet - currentPlayer.currentBet) {
-      validActions.push('call');
-    }
-    
-    // If player has enough chips to bet or raise
-    if (currentPlayer.chips > 0) {
-      // If no bet yet, player can bet
-      if (highestBet === 0) {
-        validActions.push('bet');
-      } 
-      // If there's already a bet, player can raise if they have enough chips
-      else if (currentPlayer.chips > highestBet - currentPlayer.currentBet + gameState.minBet) {
-        validActions.push('raise');
-      }
-    }
-    
-    // All-in is always an option if player has chips
-    if (currentPlayer.chips > 0) {
-      validActions.push('all-in');
-    }
-    
-    return validActions;
   }, []);
 
   // Function to handle button actions from the UI
@@ -2037,6 +2052,26 @@ export default function PokerRoom() {
     // Check if highest bet is higher than the big blind
     return highestBet > gameState.blinds.big;
   }, []);
+
+  // Add a useEffect to handle AI opponent actions when it's their turn
+  useEffect(() => {
+    // Skip if no game state or not in playing phase
+    if (!gameState || gameState.gamePhase !== 'betting') return;
+    
+    // Get the current player's turn
+    const currentPlayer = gameState.players.find(p => p.position === gameState.currentPlayerTurn);
+    
+    // If it's an opponent's turn, trigger AI action after a short delay
+    if (currentPlayer && currentPlayer.id !== gameState.humanPlayerId) {
+      const timeoutId = setTimeout(() => {
+        console.log("AI turn detected, triggering opponent action...");
+        simulateOpponentAction();
+      }, 1000);
+      
+      // Clean up timeout if component unmounts or gameState changes
+      return () => clearTimeout(timeoutId);
+    }
+  }, [gameState, simulateOpponentAction]);
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden"

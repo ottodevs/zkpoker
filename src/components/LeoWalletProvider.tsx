@@ -7,7 +7,6 @@ import { LeoWalletAdapter } from "@demox-labs/aleo-wallet-adapter-leo";
 import {
   DecryptPermission,
   WalletAdapterNetwork,
-  WalletReadyState,
   WalletError
 } from "@demox-labs/aleo-wallet-adapter-base";
 
