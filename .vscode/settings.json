@@ -21,5 +21,8 @@
     },
     "eslint.format.enable": true,
     "eslint.validate": ["javascript", "typescript", "typescriptreact"],
-    "typescript.tsdk": "node_modules/typescript/lib"
+    "typescript.tsdk": "node_modules/typescript/lib",
+    "leo.validate": false,
+    "leo.maxNumberOfProblems": 0,
+    "leo.trace.server": "off"
 }
