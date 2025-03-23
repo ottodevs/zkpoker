@@ -7,8 +7,9 @@ import {
     PrivateKey,
     ProgramManager,
 } from '@provablehq/sdk'
-
-await initThreadPool()
+;(async () => {
+    await initThreadPool()
+})()
 
 // Vamos a probar con el ID real de program.json
 const POKER_PROGRAM_ID = 'mental_poker_trifecta.aleo'
