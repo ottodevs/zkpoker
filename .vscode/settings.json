@@ -1,0 +1,25 @@
+{
+    // files
+    "files.associations": {
+        "*.css": "tailwindcss",
+        ".env.*.local": "env",
+        ".env.local": "env",
+        ".secrets": "env",
+        ".npmrc": "ini"
+    },
+    "typescript.tsserver.watchOptions": {
+        "watchDirectory": "useFsEvents",
+        "watchFile": "useFsEvents",
+        "excludeDirectories": ["**/node_modules"]
+    },
+
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.codeActionsOnSave": {
+        "source.fixAll": "explicit",
+        "source.organizeImports": "explicit"
+    },
+    "eslint.format.enable": true,
+    "eslint.validate": ["javascript", "typescript", "typescriptreact"],
+    "typescript.tsdk": "node_modules/typescript/lib"
+}

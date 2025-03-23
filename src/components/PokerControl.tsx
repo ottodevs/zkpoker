@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Exo } from 'next/font/google';
 import Image from "next/image";
 
@@ -12,6 +12,8 @@ const exo = Exo({
 interface PokerControlProps {
   onAction: (action: string) => void;
   playerChips?: number; // Optional prop for player's total chips
+  avatarIndex?: number; // Add avatar index prop
+  existingBet?: boolean; // Add whether there's an existing bet higher than blinds
 }
 
 // SVG Components for button backgrounds
@@ -142,31 +144,60 @@ const SliderInactiveGauge = () => (
   </svg>
 );
 
-export default function PokerControl({ onAction, playerChips = 2300 }: PokerControlProps) {
-  const [betAmount, setBetAmount] = useState("2000");
-  const [sliderPosition, setSliderPosition] = useState(20); // Initial position percentage
+export default function PokerControl({ onAction, playerChips = 2300, avatarIndex = 0, existingBet = false }: PokerControlProps) {
+  const [betAmount, setBetAmount] = useState("0");
+  const [sliderPosition, setSliderPosition] = useState(0); // Initial position 0%
   const [isDragging, setIsDragging] = useState(false);
   // Button hover states
   const [hoveredButton, setHoveredButton] = useState<string | null>(null);
+  // Track all-in state
+  const [isAllIn, setIsAllIn] = useState(false);
+  
+  // Log essential info only once when the component renders or when critical props change
+  useEffect(() => {
+    console.log("PokerControl received avatarIndex:", avatarIndex);
+    console.log("Avatar path should be:", `/avatar${avatarIndex + 1}.png`);
+    console.log("Player chips:", playerChips);
+    console.log("Existing bet:", existingBet ? "Yes (show RAISE)" : "No (show BET)");
+  }, [avatarIndex, playerChips, existingBet]);
   
   const sliderContainerRef = useRef<HTMLDivElement>(null);
-  const maxBet = 10000;
+  // Use player's chips as the maximum bet instead of hardcoded value
+  const maxBet = playerChips;
 
   // Update slider position from bet amount
   const updatePositionFromBet = useCallback((bet: string | number) => {
     const numValue = typeof bet === 'string' ? parseInt(bet, 10) || 0 : bet;
-    const percentage = Math.min((numValue / maxBet) * 100, 100);
+    // Make sure bet cannot exceed player chips
+    const cappedBet = Math.min(numValue, playerChips);
+    const percentage = Math.min((cappedBet / maxBet) * 100, 100);
     setSliderPosition(percentage);
-  }, [maxBet]);
+    
+    // Update bet amount if it was capped
+    if (numValue !== cappedBet && typeof bet === 'string') {
+      setBetAmount(cappedBet.toString());
+    }
+  }, [maxBet, playerChips]);
 
   const handleBetChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     // Only allow numeric input
-    const value = e.target.value.replace(/[^0-9]/g, '');
-    setBetAmount(value);
-    onAction(`bet_${value}`);
+    const value = e.target.value.replace(/[^0-9]/g, '').replace(/^\$/, '');
+    
+    // Cap the bet at player's available chips
+    const numericValue = parseInt(value, 10) || 0;
+    const cappedValue = Math.min(numericValue, playerChips);
+    
+    // Set the capped value
+    setBetAmount(cappedValue.toString());
+    
+    // If user manually changes bet, they're no longer all-in
+    setIsAllIn(cappedValue === playerChips);
+    
+    // Remove the action call - only update the UI
+    // onAction(`bet_${cappedValue}`);
     
     // Update slider position when input changes
-    updatePositionFromBet(value);
+    updatePositionFromBet(cappedValue);
   };
 
   const updateSliderPosition = useCallback((clientX: number) => {
@@ -177,12 +208,17 @@ export default function PokerControl({ onAction, playerChips = 2300 }: PokerCont
       
       setSliderPosition(percentage);
       
-      // Update bet amount based on slider position
-      const newBet = Math.floor((percentage / 100) * maxBet);
+      // Update bet amount based on slider position, capped at player chips
+      const newBet = Math.min(Math.floor((percentage / 100) * maxBet), playerChips);
       setBetAmount(newBet.toString());
-      onAction(`bet_${newBet}`);
+      
+      // If the bet equals max chips, it's an all-in
+      setIsAllIn(newBet === playerChips);
+      
+      // Remove the action call - only update the UI
+      // onAction(`bet_${newBet}`);
     }
-  }, [maxBet, onAction]);
+  }, [maxBet, playerChips]);
 
   const handleSliderClick = (e: React.MouseEvent<HTMLDivElement>) => {
     // Only handle direct clicks, not drag events
@@ -237,15 +273,27 @@ export default function PokerControl({ onAction, playerChips = 2300 }: PokerCont
             <WinBoxBg />
             <div className="absolute inset-0 flex items-center px-4 text-white">
               <span className="mr-2 text-gray-300">WIN:</span>
-              <span className="font-bold text-xl">$2,190</span>
+              <span className="font-bold text-xl">$0</span>
             </div>
           </div>
           
           {/* Avatar in center */}
           <div className="relative pt-6">
             <div className="relative">
-              <div className="absolute inset-0 rounded-full shadow-[0_0_14px_8px_rgba(255,215,0,0.6)] blur-md"></div>
-              <Image src="/user-ring.svg" alt="Player" width={120} height={120} className="relative z-10" />
+              {/* Make the gold ring more prominent */}
+              <div className="absolute inset-0 rounded-full shadow-[0_0_18px_12px_rgba(255,215,0,0.7)] blur-md"></div>
+              <Image src="/user-ring.svg" alt="Player" width={120} height={120} className="relative z-10 w-[120px] h-[120px]" />
+              <div className="absolute top-[4px] left-[4px] w-[108px] h-[108px] rounded-full overflow-hidden ">
+                <Image 
+                  src={`/avatar${avatarIndex + 1}.png`}
+                  alt={`Player Avatar (${avatarIndex})`}
+                  width={100}
+                  height={100}
+                  className="object-cover w-full h-full"
+                  unoptimized={true}
+                  priority
+                />
+              </div>
             </div>
           </div>
           
@@ -269,8 +317,8 @@ export default function PokerControl({ onAction, playerChips = 2300 }: PokerCont
             <div className="absolute -right-[225px] top-0 mt-3">
               <div 
                 ref={sliderContainerRef}
-                className="relative h-[15px] w-[185px] cursor-pointer"
-                onClick={handleSliderClick}
+                className={`relative h-[15px] w-[185px] ${isAllIn ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
+                onClick={!isAllIn ? handleSliderClick : undefined}
               >
                 {/* Inactive gauge (background) */}
                 <div className="absolute left-0 top-0">
@@ -287,9 +335,9 @@ export default function PokerControl({ onAction, playerChips = 2300 }: PokerCont
                 
                 {/* Slider thumb */}
                 <div 
-                  className="absolute top-[-4px] transform -translate-x-1/2 z-10 cursor-grab active:cursor-grabbing"
+                  className={`absolute top-[-4px] transform -translate-x-1/2 z-10 ${isAllIn ? 'cursor-not-allowed' : 'cursor-grab active:cursor-grabbing'}`}
                   style={{ left: `${sliderPosition}%` }}
-                  onMouseDown={handleMouseDown}
+                  onMouseDown={!isAllIn ? handleMouseDown : undefined}
                 >
                   <SliderThumb />
                 </div>
@@ -362,11 +410,20 @@ export default function PokerControl({ onAction, playerChips = 2300 }: PokerCont
               <RaiseButtonBg isHovered={hoveredButton === 'raise'} />
               <button 
                 className="absolute inset-0 flex items-center justify-center text-white font-bold z-10 text-[21px] transition-all duration-200 cursor-pointer"
-                onClick={() => onAction('raise')}
+                onClick={() => {
+                  // When the green button is clicked, send the current bet amount as part of the action
+                  const currentBet = parseInt(betAmount, 10);
+                  if (currentBet > 0) {
+                    onAction(existingBet ? `bet_${currentBet}` : `bet_${currentBet}`);
+                  } else {
+                    // If no amount is set, use the default action
+                    onAction(existingBet ? 'raise' : 'bet');
+                  }
+                }}
                 onMouseEnter={() => setHoveredButton('raise')}
                 onMouseLeave={() => setHoveredButton(null)}
               >
-                RAISE
+                {existingBet ? 'RAISE' : 'BET'}
               </button>
             </div>
             
@@ -404,6 +461,8 @@ export default function PokerControl({ onAction, playerChips = 2300 }: PokerCont
                 onClick={() => {
                   // Set bet amount to player's total chips
                   setBetAmount(playerChips.toString());
+                  // Set all-in state to true
+                  setIsAllIn(true);
                   // Set slider to max position
                   setSliderPosition(100);
                   onAction(`all_in_${playerChips}`);
@@ -423,16 +482,18 @@ export default function PokerControl({ onAction, playerChips = 2300 }: PokerCont
           <div className="relative w-[170px] h-[46px]">
             <MinusButtonBg isHovered={hoveredButton === 'minus'} />
             <button 
-              className="absolute inset-0 flex items-center justify-center text-white font-bold text-[21px] z-10 transition-all duration-200 cursor-pointer"
+              className={`absolute inset-0 flex items-center justify-center text-white font-bold text-[21px] z-10 transition-all duration-200 ${isAllIn ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
               onClick={() => {
+                if (isAllIn) return;
                 const currentBet = parseInt(betAmount, 10);
                 const newBet = Math.max(currentBet - 100, 0);
                 setBetAmount(newBet.toString());
-                // Update slider position when bet is decreased
+                setIsAllIn(false);
                 updatePositionFromBet(newBet);
-                onAction(`bet_${newBet}`);
+                // Remove the action call - only update the UI
+                // onAction(`bet_${newBet}`);
               }}
-              onMouseEnter={() => setHoveredButton('minus')}
+              onMouseEnter={() => !isAllIn && setHoveredButton('minus')}
               onMouseLeave={() => setHoveredButton(null)}
             >
               -
@@ -463,16 +524,18 @@ export default function PokerControl({ onAction, playerChips = 2300 }: PokerCont
           <div className="relative w-[170px] h-[46px]">
             <PlusButtonBg isHovered={hoveredButton === 'plus'} />
             <button 
-              className="absolute inset-0 flex items-center justify-center text-white font-bold text-[21px] z-10 transition-all duration-200 cursor-pointer"
+              className={`absolute inset-0 flex items-center justify-center text-white font-bold text-[21px] z-10 transition-all duration-200 ${isAllIn ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
               onClick={() => {
+                if (isAllIn) return;
                 const currentBet = parseInt(betAmount, 10);
                 const newBet = currentBet + 100;
                 setBetAmount(newBet.toString());
-                // Update slider position when bet is increased
+                setIsAllIn(false);
                 updatePositionFromBet(newBet);
-                onAction(`bet_${newBet}`);
+                // Remove the action call - only update the UI
+                // onAction(`bet_${newBet}`);
               }}
-              onMouseEnter={() => setHoveredButton('plus')}
+              onMouseEnter={() => !isAllIn && setHoveredButton('plus')}
               onMouseLeave={() => setHoveredButton(null)}
             >
               +
