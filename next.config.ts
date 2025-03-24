@@ -24,7 +24,6 @@ const nextConfig: NextConfig = {
                 ],
             },
             {
-                // Agregar encabezados CORS para solicitudes de la API
                 source: '/api/aleo/:path*',
                 headers: [
                     { key: 'Access-Control-Allow-Credentials', value: 'true' },
@@ -36,23 +35,32 @@ const nextConfig: NextConfig = {
                     },
                 ],
             },
+            {
+                source: '/api/testnet/:path*',
+                headers: [
+                    { key: 'Access-Control-Allow-Credentials', value: 'true' },
+                    { key: 'Access-Control-Allow-Origin', value: '*' },
+                    { key: 'Access-Control-Allow-Methods', value: 'GET,OPTIONS' },
+                    { key: 'Cache-Control', value: 'public, max-age=10, s-maxage=10' },
+                    {
+                        key: 'Access-Control-Allow-Headers',
+                        value: 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version',
+                    },
+                ],
+            },
         ]
     },
     async rewrites() {
         return [
+            // Testnet block API endpoint
             {
-                source: '/testnet/stateRoot/:path*',
-                destination: 'http://localhost:3030/testnet/stateRoot/:path*',
-            },
-            // Proxy todas las solicitudes a la API de Aleo
-            {
-                source: '/api/aleo/:path*',
+                source: '/api/local/:path*',
                 destination: 'http://localhost:3030/:path*',
             },
-            // Proxy específico para las solicitudes de programas
+            // Remote API testnet
             {
-                source: '/api/aleo/testnet/program/:program*',
-                destination: 'http://localhost:3030/testnet/program/:program*',
+                source: '/api/aleo/:path*',
+                destination: 'https://api.explorer.provable.com/v1/:path*',
             },
         ]
     },
