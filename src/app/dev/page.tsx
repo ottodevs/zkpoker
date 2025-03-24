@@ -18,13 +18,13 @@ interface ProgramInfo {
 export default function Home() {
     const [account, setAccount] = useState<string | null>(null)
     const [isLoading, setIsLoading] = useState<boolean>(false)
-    const [games, setGames] = useState<Array<{ id: number; blinds: string; players: string }>>([
+    const [games, _setGames] = useState<Array<{ id: number; blinds: string; players: string }>>([
         { id: 1, blinds: '5/10', players: '0/3' },
     ])
     const [newGameId, setNewGameId] = useState<number>(2) // Start with ID 2 since we have a default game
-    const [txStatus, setTxStatus] = useState<string | null>(null)
-    const [txId, setTxId] = useState<string | null>(null)
-    const [programInfo, setProgramInfo] = useState<ProgramInfo | null>(null)
+    const [txStatus, _setTxStatus] = useState<string | null>(null)
+    const [txId, _setTxId] = useState<string | null>(null)
+    const [programInfo, _setProgramInfo] = useState<ProgramInfo | null>(null)
     const [connectionStatus, setConnectionStatus] = useState<'checking' | 'connected' | 'error'>('checking')
     const [connectionError, setConnectionError] = useState<string | null>(null)
 
@@ -37,107 +37,107 @@ export default function Home() {
             logInit('Creating worker')
             try {
                 // Create the worker
-                workerRef.current = new Worker(new URL('./worker.ts', import.meta.url))
+                // workerRef.current = new Worker(new URL('./worker.ts', import.meta.url))
 
                 // Set loading state while initializing
                 setIsLoading(true)
                 setConnectionStatus('checking')
 
-                workerRef.current.onmessage = event => {
-                    const { type, result } = event.data
-                    logInfo(`Received worker response: ${type}`)
+                // workerRef.current.onmessage = event => {
+                //     const { type, result } = event.data
+                //     logInfo(`Received worker response: ${type}`)
 
-                    if (type === 'privateKey') {
-                        logAction('Account', `Key generated: ${result.substring(0, 10)}...`)
-                        setAccount(result)
-                        setIsLoading(false)
-                        localStorage.setItem('pokerPrivateKey', result)
-                        logInfo(`Account set: ${result.substring(0, 10)}...`)
-                    } else if (type === 'createGame') {
-                        setIsLoading(false)
+                //     if (type === 'privateKey') {
+                //         logAction('Account', `Key generated: ${result.substring(0, 10)}...`)
+                //         setAccount(result)
+                //         setIsLoading(false)
+                //         localStorage.setItem('pokerPrivateKey', result)
+                //         logInfo(`Account set: ${result.substring(0, 10)}...`)
+                //     } else if (type === 'createGame') {
+                //         setIsLoading(false)
 
-                        // Check if result is an error message
-                        if (typeof result === 'string' && result.startsWith('Error:')) {
-                            logError(`Error creating game: ${result}`)
-                            alert(result)
-                            return
-                        }
+                //         // Check if result is an error message
+                //         if (typeof result === 'string' && result.startsWith('Error:')) {
+                //             logError(`Error creating game: ${result}`)
+                //             alert(result)
+                //             return
+                //         }
 
-                        logAction('Game', `Created game with transaction ID: ${result.tx_id}`)
-                        setTxId(result.tx_id)
+                //         logAction('Game', `Created game with transaction ID: ${result.tx_id}`)
+                //         setTxId(result.tx_id)
 
-                        // Add the new game to our list
-                        setGames(prevGames => [
-                            ...prevGames,
-                            {
-                                id: newGameId,
-                                blinds: '5/10',
-                                players: '1/3',
-                            },
-                        ])
+                //         // Add the new game to our list
+                //         setGames(prevGames => [
+                //             ...prevGames,
+                //             {
+                //                 id: newGameId,
+                //                 blinds: '5/10',
+                //                 players: '1/3',
+                //             },
+                //         ])
 
-                        // Si el resultado es simulado, mostrar un mensaje
-                        if (result.simulated) {
-                            setConnectionStatus('error')
-                            setConnectionError(
-                                `Operación simulada debido a problemas con la cadena local. TX ID: ${result.tx_id}`,
-                            )
-                        }
-                    } else if (type === 'joinGame') {
-                        setIsLoading(false)
+                //         // Si el resultado es simulado, mostrar un mensaje
+                //         if (result.simulated) {
+                //             setConnectionStatus('error')
+                //             setConnectionError(
+                //                 `Operación simulada debido a problemas con la cadena local. TX ID: ${result.tx_id}`,
+                //             )
+                //         }
+                //     } else if (type === 'joinGame') {
+                //         setIsLoading(false)
 
-                        // Check if result is an error message
-                        if (typeof result === 'string' && result.startsWith('Error:')) {
-                            logError(`Error joining game: ${result}`)
-                            alert(result)
-                            return
-                        }
+                //         // Check if result is an error message
+                //         if (typeof result === 'string' && result.startsWith('Error:')) {
+                //             logError(`Error joining game: ${result}`)
+                //             alert(result)
+                //             return
+                //         }
 
-                        logAction('Game', `Joined game with transaction ID: ${result.tx_id}`)
-                        setTxId(result.tx_id)
+                //         logAction('Game', `Joined game with transaction ID: ${result.tx_id}`)
+                //         setTxId(result.tx_id)
 
-                        // Si el resultado es simulado, mostrar un mensaje
-                        if (result.simulated) {
-                            setConnectionStatus('error')
-                            setConnectionError(
-                                `Operación simulada debido a problemas con la cadena local. TX ID: ${result.tx_id}`,
-                            )
-                        }
-                    } else if (type === 'transaction') {
-                        logAction('Transaction', `Status: ${JSON.stringify(result).substring(0, 100)}...`)
-                        setTxStatus(JSON.stringify(result, null, 2))
-                    } else if (type === 'program') {
-                        if (typeof result === 'string' && result.startsWith('Error:')) {
-                            logError(`Error fetching program: ${result}`)
-                            setConnectionStatus('error')
-                            setConnectionError(result.replace('Error: ', ''))
-                            setProgramInfo(null)
-                        } else {
-                            logAction('Program', `Got program info`)
-                            setProgramInfo(result)
-                            setConnectionStatus('connected')
-                            setConnectionError(null)
-                        }
-                    } else if (type === 'error') {
-                        setIsLoading(false)
-                        logError(`Worker error: ${result}`)
+                //         // Si el resultado es simulado, mostrar un mensaje
+                //         if (result.simulated) {
+                //             setConnectionStatus('error')
+                //             setConnectionError(
+                //                 `Operación simulada debido a problemas con la cadena local. TX ID: ${result.tx_id}`,
+                //             )
+                //         }
+                //     } else if (type === 'transaction') {
+                //         logAction('Transaction', `Status: ${JSON.stringify(result).substring(0, 100)}...`)
+                //         setTxStatus(JSON.stringify(result, null, 2))
+                //     } else if (type === 'program') {
+                //         if (typeof result === 'string' && result.startsWith('Error:')) {
+                //             logError(`Error fetching program: ${result}`)
+                //             setConnectionStatus('error')
+                //             setConnectionError(result.replace('Error: ', ''))
+                //             setProgramInfo(null)
+                //         } else {
+                //             logAction('Program', `Got program info`)
+                //             setProgramInfo(result)
+                //             setConnectionStatus('connected')
+                //             setConnectionError(null)
+                //         }
+                //     } else if (type === 'error') {
+                //         setIsLoading(false)
+                //         logError(`Worker error: ${result}`)
 
-                        // Si hay error de conexión
-                        if (result.includes('conectar') || result.includes('500')) {
-                            setConnectionStatus('error')
-                            setConnectionError(result)
-                        }
+                //         // Si hay error de conexión
+                //         if (result.includes('conectar') || result.includes('500')) {
+                //             setConnectionStatus('error')
+                //             setConnectionError(result)
+                //         }
 
-                        alert(`Error: ${result}`)
+                //         alert(`Error: ${result}`)
 
-                        // If it was a key generation error, try again
-                        if (result.includes('private key')) {
-                            setTimeout(() => {
-                                generateAccount()
-                            }, 1000)
-                        }
-                    }
-                }
+                //         // If it was a key generation error, try again
+                //         if (result.includes('private key')) {
+                //             setTimeout(() => {
+                //                 generateAccount()
+                //             }, 1000)
+                //         }
+                //     }
+                // }
 
                 // Initialize account if we have a stored key
                 const storedKey = localStorage.getItem('pokerPrivateKey')
@@ -168,10 +168,10 @@ export default function Home() {
         }
 
         return () => {
-            if (workerRef.current) {
-                logInfo('Terminating worker')
-                workerRef.current.terminate()
-            }
+            // if (workerRef.current) {
+            //     logInfo('Terminating worker')
+            //     // workerRef.current.terminate()
+            // }
         }
     }, [newGameId])
 
