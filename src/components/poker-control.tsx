@@ -332,9 +332,9 @@ export default function PokerControl({
     playerChips = 2300,
     avatarIndex = 0,
     existingBet = false,
-    minBet = 0,
-    isPlayerTurn = false,
-    isLoading = false,
+    // minBet = 0,
+    // isPlayerTurn = false,
+    // isLoading = false,
 }: PokerControlProps) {
     const [betAmount, setBetAmount] = useState('0')
     const [sliderPosition, setSliderPosition] = useState(0) // Initial position 0%
@@ -479,7 +479,7 @@ export default function PokerControl({
                             {/* Make the gold ring more prominent */}
                             <div className='absolute inset-0 rounded-full shadow-[0_0_18px_12px_rgba(255,215,0,0.7)] blur-md' />
                             <Image
-                                src='/user-ring.svg'
+                                src='/images/table/user-ring.svg'
                                 alt='Player'
                                 width={120}
                                 height={120}
@@ -487,7 +487,7 @@ export default function PokerControl({
                             />
                             <div className='absolute top-[4px] left-[4px] h-[108px] w-[108px] overflow-hidden rounded-full'>
                                 <Image
-                                    src={`/avatar${avatarIndex + 1}.png`}
+                                    src={`/images/avatars/avatar${avatarIndex + 1}.png`}
                                     alt={`Player Avatar (${avatarIndex})`}
                                     width={100}
                                     height={100}
