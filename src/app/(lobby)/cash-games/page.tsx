@@ -1,7 +1,7 @@
 'use client'
 
-import BuyInOverlay from '@/components/BuyInOverlay'
-import soundService from '@/services/SoundService'
+import BuyInOverlay from '@/components/lobby/buy-in-overlay'
+import soundService from '@/services/sound-service'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
@@ -23,13 +23,7 @@ const CASH_GAMES = [
 ]
 
 const JoinButtonBg = () => (
-    <svg
-        xmlns='http://www.w3.org/2000/svg'
-        width='119'
-        height='62'
-        viewBox='0 0 119 62'
-        fill='none'
-        className='absolute inset-0'>
+    <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 119 62' fill='none' className='size-full'>
         <path
             d='M15.9296 6.11273C17.1672 2.45877 20.596 0 24.4539 0H109.288C115.449 0 119.789 6.05161 117.812 11.8873L102.909 55.887C101.671 59.541 98.2427 61.9998 94.3848 61.9998H9.55065C3.38932 61.9998 -0.950255 55.9482 1.02635 50.1125L15.9296 6.11273Z'
             fill='url(#paint0_linear_41_28)'
@@ -67,54 +61,75 @@ export default function CashGamesPage() {
     }
 
     return (
-        <div className='mx-auto w-full max-w-[1260px]'>
-            <div className='mb-6 flex flex-col'>
-                <div className='mb-4 flex items-center text-white'>
-                    <h1 className={`w-[300px] text-2xl font-bold`}>CASH GAMES</h1>
-                    <div className={`ml-[200px] flex`}>
-                        <span className='-ml-4 hidden w-[300px] text-lg font-bold md:inline'>BLINDS</span>
-                        <span className='ml-56 hidden w-[300px] text-lg font-bold md:inline'>BUY-IN</span>
-                        <span className='-ml-40 hidden text-lg font-bold md:inline'>ACTION</span>
-                    </div>
-                </div>
-                <div className='h-px bg-white/10' />
-            </div>
-
-            <div className='space-y-6'>
-                {CASH_GAMES.map((game, index) => (
-                    <div key={index} className='relative flex w-full items-center'>
-                        <Image
-                            src={`/nlh-games/${game.svg}.svg`}
-                            alt={`NLH ${game.blinds}`}
-                            width={1260}
-                            height={80}
-                            className='h-auto w-full'
-                            style={{ height: 'auto' }}
-                        />
-                        <div
-                            className='absolute top-7 right-8 h-[62px] w-[124.839px] cursor-pointer'
-                            onClick={() => handleJoinClick(game)}
-                            data-action='join-game'>
-                            <JoinButtonBg />
-                            <div className='absolute inset-0 flex items-center justify-center'>
-                                <span className={`text-xl font-bold text-black`}>JOIN</span>
-                            </div>
+        <div className='flex min-h-screen w-full justify-center p-8'>
+            <div className='w-full max-w-[1260px] px-4'>
+                {/* Header */}
+                <div className='relative mb-6 w-[88%]'>
+                    <div className='mb-4 grid grid-cols-12 gap-4'>
+                        <div className='col-span-3'>
+                            <span className='text-2xl font-bold text-white'>CASH GAMES</span>
+                        </div>
+                        <div className='col-span-3'>
+                            <span className='text-lg font-bold text-white'>BLINDS</span>
+                        </div>
+                        <div className='col-span-4'>
+                            <span className='text-lg font-bold text-white'>BUY-IN</span>
+                        </div>
+                        <div className='right-[18%] col-span-2'>
+                            <span className='text-lg font-bold text-white'>ACTION</span>
                         </div>
                     </div>
-                ))}
-            </div>
+                    <div className='h-px w-[95%] bg-white/10' />
+                </div>
 
-            {/* Buy-in Overlay */}
-            {selectedGame && (
-                <BuyInOverlay
-                    isOpen={showBuyIn}
-                    onClose={() => setShowBuyIn(false)}
-                    onBuyIn={handleBuyIn}
-                    minBuyIn={selectedGame.minBuyIn}
-                    maxBuyIn={selectedGame.maxBuyIn}
-                    blinds={selectedGame.blinds}
-                />
-            )}
+                {/* Games List */}
+                <div className='space-y-6'>
+                    {CASH_GAMES.map((game, index) => (
+                        <div key={index} className='relative w-full'>
+                            <div className='grid grid-cols-12 items-center gap-4'>
+                                <div className='col-span-10'>
+                                    <div className='relative aspect-[8.87/1] w-full'>
+                                        <Image
+                                            src={`/images/nlh-games/${game.svg}.svg`}
+                                            alt={`NLH ${game.blinds}`}
+                                            fill
+                                            className='object-contain object-left'
+                                            priority
+                                        />
+                                    </div>
+                                </div>
+                                <div className='absolute top-[12%] right-[19%] col-span-2'>
+                                    <div
+                                        className='cursor-pointer'
+                                        onClick={() => handleJoinClick(game)}
+                                        data-action='join-game'>
+                                        <div className='relative aspect-[1.919/1] w-[8.73vw] max-w-[90px] min-w-[60px]'>
+                                            <JoinButtonBg />
+                                            <div className='absolute inset-0 flex items-center justify-center'>
+                                                <span className='text-[min(1.6vw,18px)] font-bold text-black'>
+                                                    JOIN
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Buy-in Overlay */}
+                {selectedGame && (
+                    <BuyInOverlay
+                        isOpen={showBuyIn}
+                        onClose={() => setShowBuyIn(false)}
+                        onBuyIn={handleBuyIn}
+                        minBuyIn={selectedGame.minBuyIn}
+                        maxBuyIn={selectedGame.maxBuyIn}
+                        blinds={selectedGame.blinds}
+                    />
+                )}
+            </div>
         </div>
     )
 }
