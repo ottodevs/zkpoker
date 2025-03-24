@@ -9,7 +9,7 @@ interface DashboardContainerProps {
 export function DashboardContainer({
     children,
     className = '',
-    backgroundImageSrc = '/dashboard-bg.png',
+    backgroundImageSrc = '/images/lobby/dashboard-bg.png',
 }: DashboardContainerProps) {
     return (
         <div
