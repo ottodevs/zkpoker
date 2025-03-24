@@ -6,7 +6,7 @@ export default function NotFound() {
     return (
         <ErrorLayout>
             {/* Bad hand animation */}
-            <CardHand card1='/cards/2c.svg' card2='/cards/7h.svg' className='mb-12' />
+            <CardHand card1='/images/cards/2c.svg' card2='/images/cards/7h.svg' className='mb-12' />
 
             <ErrorContent
                 title='Bad Beat!'
