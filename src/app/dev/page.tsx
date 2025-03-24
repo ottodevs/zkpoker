@@ -173,7 +173,7 @@ export default function Home() {
                 workerRef.current.terminate()
             }
         }
-    }, [])
+    }, [newGameId])
 
     const generateAccount = () => {
         if (!workerRef.current) {
