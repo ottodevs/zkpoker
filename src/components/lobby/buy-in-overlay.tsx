@@ -1,12 +1,5 @@
-import { Exo } from 'next/font/google'
 import Image from 'next/image'
 import { useCallback, useEffect, useRef, useState } from 'react'
-
-const exo = Exo({
-    subsets: ['latin'],
-    display: 'swap',
-    weight: ['400', '500', '700'],
-})
 
 interface BuyInOverlayProps {
     isOpen: boolean
@@ -122,7 +115,7 @@ export default function BuyInOverlay({
     return (
         <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/50'>
             <div
-                className={`relative w-[616px] rounded-[20px] bg-gradient-to-b from-[#273b56] to-[#0d1c2d] shadow-[0px_0px_125px_14px_rgba(0,0,0,0.45)] ${exo.className}`}>
+                className={`relative w-[616px] rounded-[20px] bg-gradient-to-b from-[#273b56] to-[#0d1c2d] shadow-[0px_0px_125px_14px_rgba(0,0,0,0.45)]`}>
                 {/* Close button */}
                 <button className='absolute top-6 right-6 h-6 w-6 text-white' onClick={onClose}>
                     <svg width='24' height='24' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'>
@@ -147,7 +140,7 @@ export default function BuyInOverlay({
                                 className={`relative h-[88px] w-[88px] overflow-hidden rounded-full bg-[#273b56] transition-all duration-200 ${selectedAvatar === index ? 'scale-110 ring-4 ring-[#4df0b3] ring-offset-2 ring-offset-[#0d1c2d]' : 'hover:ring-2 hover:ring-white/50'}`}
                                 onClick={() => setSelectedAvatar(index)}>
                                 <Image
-                                    src={`/avatar${index + 1}.png`}
+                                    src={`/images/avatars/avatar${index + 1}.png`}
                                     alt={`Avatar ${index + 1}`}
                                     width={88}
                                     height={88}
@@ -173,7 +166,7 @@ export default function BuyInOverlay({
                         <div className='ml-1 flex items-center gap-1.5'>
                             <div className='flex h-[22.7px] w-[22.7px] items-center justify-center rounded-full bg-[#121212]'>
                                 <Image
-                                    src='/aleo-icon.svg'
+                                    src='/images/icons/aleo-icon.svg'
                                     alt='Aleo'
                                     width={12}
                                     height={13}

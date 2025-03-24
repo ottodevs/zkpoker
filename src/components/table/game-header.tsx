@@ -1,6 +1,6 @@
+import SoundToggle from '@/components/sound-toggle'
 import Image from 'next/image'
 import Link from 'next/link'
-import SoundToggle from './SoundToggle'
 
 interface GameHeaderProps {
     gameInfo?: {
@@ -16,7 +16,13 @@ export default function GameHeader({ gameInfo }: GameHeaderProps) {
         <header className='absolute top-0 right-0 left-0 z-10 flex h-12 items-center justify-between bg-[#112237]/80 px-4 backdrop-blur-sm md:px-6'>
             <div className='flex items-center space-x-4'>
                 <Link href='/' className='flex items-center space-x-2'>
-                    <Image src='/logo-small.svg' alt='Mental Poker' width={24} height={24} className='h-auto w-auto' />
+                    <Image
+                        src='/images/logos/logo.svg'
+                        alt='Mental Poker'
+                        width={24}
+                        height={24}
+                        className='h-auto w-auto'
+                    />
                     <span className='hidden text-sm font-bold text-white sm:inline'>MENTAL POKER</span>
                 </Link>
 
