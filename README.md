@@ -1,7 +1,7 @@
 # ZKPoker: Mental Poker on Aleo
 
 <div align="center">
-  <img src="public/top-logo.svg" alt="ZKPoker Logo" width="220" />
+  <img src="public/images/logos/top-logo.svg" alt="ZKPoker Logo" width="220" />
   <p><strong>Trustless, Decentralized Poker Powered by Zero-Knowledge Proofs</strong></p>
 </div>
 
@@ -38,8 +38,8 @@
 
 <div align="center">
   <p><em>EthGlobal Trifecta 2024 Hackathon - ZK Track Submission</em></p>
-  <img src="public/ethglobal-logo.svg" alt="EthGlobal Logo" width="200" />
-  <img src="public/built-with-aleo.svg" alt="Built with Aleo" width="200" />
+  <img src="public/images/logos/ethglobal-logo.svg" alt="EthGlobal Logo" width="200" />
+  <img src="public/images/docs/built-with-aleo.svg" alt="Built with Aleo" width="200" />
 </div>
 
 ## Overview
@@ -49,7 +49,7 @@ ZKPoker is a trustless, decentralized poker platform powered by zero-knowledge p
 Most existing web3 poker solutions still rely on centralized components for card dealing and verification. ZKPoker solves the fundamental issue of "mental poker" - playing a fair card game without a trusted dealer - using modern cryptography and Aleo's privacy-preserving execution environment.
 
 <div align="center">
-  <img src="public/poker-table.svg" alt="ZKPoker Table" width="600" />
+  <img src="public/images/table/poker-table.svg" alt="ZKPoker Table" width="600" />
 </div>
 
 <div align="right">
@@ -76,7 +76,7 @@ Most existing web3 poker solutions still rely on centralized components for card
 - **Responsive Design**: Play on any device with adaptive layout
 
 <div align="center">
-  <img src="public/table.jpg" alt="ZKPoker Background" width="600" />
+  <img src="public/images/docs/table.jpg" alt="ZKPoker Background" width="600" />
 </div>
 
 <div align="right">
@@ -272,7 +272,7 @@ Implements secure shuffling algorithms:
 - **Shuffle Verification**: Ensure the integrity of the shuffle
 
 <div align="center">
-  <img src="public/dealer-chip.svg" alt="ZKPoker Dealer Chip" width="80" />
+  <img src="public/images/table/chips/dealer-chip.svg" alt="ZKPoker Dealer Chip" width="80" />
 </div>
 
 <div align="right">
@@ -562,10 +562,10 @@ For detailed deployment information, see our [deployments.md](deployments.md) fi
 
 <div align="center">
   <div style="display: flex; justify-content: center; gap: 20px;">
-    <img src="public/cards/ah.svg" alt="Ace of Hearts" width="60" />
-    <img src="public/cards/13c.svg" alt="King of Clubs" width="60" />
-    <img src="public/cards/12d.svg" alt="Queen of Diamonds" width="60" />
-    <img src="public/cards/11s.svg" alt="Jack of Spades" width="60" />
+    <img src="public/images/cards/ah.svg" alt="Ace of Hearts" width="60" />
+    <img src="public/images/cards/13c.svg" alt="King of Clubs" width="60" />
+    <img src="public/images/cards/12d.svg" alt="Queen of Diamonds" width="60" />
+    <img src="public/images/cards/11s.svg" alt="Jack of Spades" width="60" />
   </div>
 </div>
 
@@ -630,10 +630,10 @@ gantt
 - **Wallet Compatibility**: Support for additional Aleo wallets as they become available
 
 <div align="center">
-  <img src="public/blue-chip.svg" alt="Blue Chip" width="50" />
-  <img src="public/red-chip.svg" alt="Red Chip" width="50" />
-  <img src="public/yellow-chip.svg" alt="Yellow Chip" width="50" />
-  <img src="public/green-chip.svg" alt="Green Chip" width="50" />
+  <img src="public/images/table/chips/blue-chip.svg" alt="Blue Chip" width="50" />
+  <img src="public/images/table/chips/red-chip.svg" alt="Red Chip" width="50" />
+  <img src="public/images/table/chips/yellow-chip.svg" alt="Yellow Chip" width="50" />
+  <img src="public/images/table/chips/green-chip.svg" alt="Green Chip" width="50" />
 </div>
 
 <div align="right">
@@ -673,7 +673,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - EthGlobal Trifecta 2024 for the opportunity to showcase this project
 - The mental poker research community for laying the cryptographic foundations
     <div align="right">
-      <a href="#zkpoker-mental-poker-on-aleo">Back to Top ↑</a>
+    <a href="#zkpoker-mental-poker-on-aleo">Back to Top ↑</a>
     </div>
 
 ---
