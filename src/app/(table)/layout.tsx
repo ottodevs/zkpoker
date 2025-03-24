@@ -1,4 +1,4 @@
-import GameHeader from '@/components/GameHeader'
+import GameHeader from '@/components/table/game-header'
 import type { ReactNode } from 'react'
 
 interface TableLayoutProps {
