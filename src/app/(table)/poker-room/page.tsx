@@ -1,15 +1,12 @@
-/* eslint-disable react-hooks/exhaustive-deps */
 'use client'
 
 import PokerControl from '@/components/poker-control'
 import soundService from '@/services/sound-service'
+import { useWallet } from '@demox-labs/aleo-wallet-adapter-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-// Importar useWallet para acceder a la wallet de Leo
-// Importar useAccount para acceder a la wallet
-import { useWallet } from '@demox-labs/aleo-wallet-adapter-react'
 
 // Define types for our game state
 interface Player {
@@ -74,7 +71,7 @@ function PokerRoomContent() {
     const searchParams = useSearchParams()
     const { connected, publicKey } = useWallet() // Changed from useAccount to useWallet
 
-    // Añadir referencias a la blockchain de Aleo
+    // Add references to the blockchain of Aleo
     const [_blockchainGameId, setBlockchainGameId] = useState<number | null>(null)
     const [_blockchainTxId, setBlockchainTxId] = useState<string | null>(null)
     const [_blockchainStatus, setBlockchainStatus] = useState<'idle' | 'creating' | 'joining' | 'error' | 'connected'>(
@@ -125,12 +122,42 @@ function PokerRoomContent() {
     // Initialize game with this player
     const initializeGame = useCallback(
         (playerId: string, position: number, chips: number, avatarIndex: number) => {
+            // Function to create a new game on the blockchain
+            const createBlockchainGame = async (privateKey: string) => {
+                if (!aleoWorker || !connected) {
+                    console.error('Cannot create game: Worker not initialized or wallet not connected')
+                    return
+                }
+
+                try {
+                    setBlockchainStatus('creating')
+                    // Generate a unique game ID based on timestamp
+                    const gameId = Date.now() % 100000 // Smaller number for the blockchain
+                    console.log(`Creating blockchain game with ID: ${gameId}`)
+
+                    // Send message to worker to create game
+                    aleoWorker.postMessage({
+                        type: 'create_game',
+                        gameId,
+                        privateKey,
+                        buyIn: playerData.chips, // Use player's chips as buy-in
+                    })
+                } catch (error) {
+                    console.error('Error creating blockchain game:', error)
+                    setBlockchainStatus('error')
+                    setGameNotification({
+                        message: `Error creating game: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                        type: 'error',
+                    })
+                }
+            }
+
             console.log(`Initializing game with player ${playerId} sitting at position ${position}`)
 
-            // Crear juego en la blockchain si el usuario está conectado
+            // Create game on blockchain if user is connected
             if (connected && publicKey) {
-                // En un caso real, obtendríamos la private key de forma segura
-                // Aquí usamos una demo simplificada
+                // In a real case, we would get the private key in a secure way
+                // Here we use a simplified demo
                 const demoPrivateKey = 'APrivateKey1zkpG9Af9z5Ha4ejVyMCqVFXRKknFrhta1j8uuiP8ew4qzUHx'
                 createBlockchainGame(demoPrivateKey)
             }
@@ -178,7 +205,237 @@ function PokerRoomContent() {
             setGameState(initialGameState)
             return initialGameState
         },
-        [shuffleDeck, connected, publicKey],
+        [connected, playerData.chips, publicKey, shuffleDeck],
+    )
+
+    /**
+     * Start a new hand after the current one ends
+     */
+    const startNewHand = useCallback(
+        (gameState: GameState) => {
+            console.log('Starting a new hand...')
+            console.log('Previous community cards:', gameState.communityCards)
+
+            // Reset the game state but keep players at the table
+            // Usando un deep copy para evitar problemas con referencias
+            const newGameState = JSON.parse(JSON.stringify(gameState))
+
+            // Reset game properties
+            newGameState.pot = 0
+            newGameState.sidePots = []
+            newGameState.communityCards = []
+            newGameState.currentBettingRound = null
+            newGameState.currentPlayerTurn = null
+            newGameState.gamePhase = 'waiting'
+
+            console.log('After reset community cards:', newGameState.communityCards)
+
+            // Reset all players' states
+            newGameState.players.forEach((player: Player) => {
+                player.holeCards = []
+                player.currentBet = 0
+                player.status = 'active'
+            })
+
+            // Rotate dealer, SB, BB positions for the next hand
+            rotateTablePositions(newGameState)
+
+            // Create and shuffle a fresh deck for the new hand
+            const suits = ['h', 'd', 'c', 's'] // hearts, diamonds, clubs, spades
+            const values = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
+            const freshDeck = suits.flatMap(suit => values.map(value => `${value}${suit}`))
+            newGameState.deck = shuffleDeck(freshDeck)
+
+            // Update game state
+            setGameState(newGameState)
+
+            // Reset game notification
+            setGameNotification({ message: '', type: null })
+
+            // Start a new hand after a short delay
+            setTimeout(() => {
+                // Update game status
+                setGameStatus('playing')
+
+                // Deal cards to players
+                dealHoleCards(newGameState)
+
+                // Set current player turn (after big blind)
+                setCurrentPlayerTurn(newGameState)
+
+                // Update game phase and betting round
+                newGameState.gamePhase = 'betting'
+                newGameState.currentBettingRound = 'pre-flop'
+
+                // Show notification for new hand
+                setGameNotification({
+                    message: 'New Hand Dealt',
+                    type: 'info',
+                })
+
+                // Clear notification after a delay
+                setTimeout(() => {
+                    setGameNotification({ message: '', type: null })
+                }, 2000)
+
+                // Update game state
+                setGameState({ ...newGameState })
+
+                // AI action will be handled by the useEffect
+            }, 1000)
+        },
+        [shuffleDeck],
+    )
+
+    /**
+     * Handle the showdown phase (determine winner)
+     */
+    const handleShowdown = useCallback(
+        (gameState: GameState): void => {
+            console.log('Handling showdown...')
+
+            // Show showdown notification
+            setGameNotification({
+                message: 'Showdown!',
+                type: 'info',
+            })
+
+            // Get active players
+            const activePlayers = gameState.players.filter(p => p.status === 'active' || p.status === 'all-in')
+
+            if (activePlayers.length === 0) {
+                console.error('No active players at showdown')
+                return
+            }
+
+            // Calculate hand strength for each player
+            const playerStrengths = activePlayers.map(player => {
+                const handStrength = evaluateHandStrength(player.holeCards, gameState.communityCards)
+                return { player, handStrength }
+            })
+
+            // Sort players by hand strength (highest first)
+            playerStrengths.sort((a, b) => b.handStrength - a.handStrength)
+
+            // The winner is the player with the highest hand strength
+            const winner = playerStrengths[0].player
+            const isHumanWinner = winner.id === gameState.humanPlayerId
+
+            console.log(
+                `Player ${winner.id} wins the pot of ${gameState.pot} with hand strength ${playerStrengths[0].handStrength}`,
+            )
+
+            // Award pot to winner
+            winner.chips += gameState.pot
+
+            // Play win sound
+            soundService.playSfx('WIN')
+
+            // Show winning notification after a short delay
+            setTimeout(() => {
+                setGameNotification({
+                    message: isHumanWinner ? `You win ${gameState.pot} chips!` : `Opponent wins ${gameState.pot} chips`,
+                    type: 'success',
+                })
+
+                // Set game as finished
+                setGameStatus('finished')
+
+                // Begin a new hand after a delay
+                setTimeout(() => {
+                    setGameNotification({ message: '', type: null })
+                    startNewHand(gameState)
+                }, 3000)
+            }, 2000)
+        },
+        [startNewHand],
+    )
+
+    /**
+     * Advance the game phase after a betting round ends
+     */
+    const advanceGamePhase = useCallback(
+        (gameState: GameState): void => {
+            // If game is not in betting phase, do nothing
+            if (gameState.gamePhase !== 'betting') {
+                console.log(`Cannot advance game phase: current phase is ${gameState.gamePhase}, not 'betting'`)
+                return
+            }
+
+            console.log(`Advancing game phase from ${gameState.currentBettingRound}...`)
+
+            // Add a flag to mark this as a new betting round
+            // This will prevent immediate checking for round completion
+            gameState.isNewBettingRound = true
+
+            // Handle different betting rounds
+            switch (gameState.currentBettingRound) {
+                case 'pre-flop':
+                    console.log('Pre-flop round complete, dealing flop...')
+                    // Deal the flop (first three community cards)
+                    dealFlop(gameState)
+                    gameState.currentBettingRound = 'flop'
+                    console.log("Flop dealt, betting round updated to 'flop'")
+                    break
+
+                case 'flop':
+                    console.log('Flop round complete, dealing turn...')
+                    // Deal the turn (fourth community card)
+                    dealTurn(gameState)
+                    gameState.currentBettingRound = 'turn'
+                    console.log("Turn dealt, betting round updated to 'turn'")
+                    break
+
+                case 'turn':
+                    console.log('Turn round complete, dealing river...')
+                    // Deal the river (fifth community card)
+                    dealRiver(gameState)
+                    gameState.currentBettingRound = 'river'
+                    console.log("River dealt, betting round updated to 'river'")
+                    break
+
+                case 'river':
+                    console.log('River round complete, moving to showdown...')
+                    // Move to showdown
+                    gameState.gamePhase = 'showdown'
+                    gameState.currentBettingRound = 'showdown'
+                    console.log("Game phase updated to 'showdown'")
+                    // Evaluate hands and determine the winner
+                    handleShowdown(gameState)
+                    break
+
+                default:
+                    console.error('Unknown betting round:', gameState.currentBettingRound)
+            }
+
+            // Reset bets for the new round if not at showdown
+            if (gameState.currentBettingRound !== 'showdown') {
+                resetBetsForNewRound(gameState)
+
+                // Set the player after the dealer as the first to act in post-flop rounds
+                const sortedPlayers = [...gameState.players].sort((a, b) => a.position - b.position)
+                const dealerIndex = sortedPlayers.findIndex(p => p.isDealer)
+                const firstToActIndex = (dealerIndex + 1) % sortedPlayers.length
+
+                // Check if this player is still active
+                if (sortedPlayers[firstToActIndex].status === 'active') {
+                    gameState.currentPlayerTurn = sortedPlayers[firstToActIndex].position
+                    console.log(`First player to act after dealer is at position ${gameState.currentPlayerTurn}`)
+                } else {
+                    // Find the next active player
+                    gameState.currentPlayerTurn = getNextPlayerInTurn(
+                        gameState,
+                        sortedPlayers[firstToActIndex].position,
+                    )
+                    console.log(
+                        `First player is not active, next active player is at position ${gameState.currentPlayerTurn}`,
+                    )
+                }
+            }
+
+            console.log(`Advanced to ${gameState.currentBettingRound}, turn: ${gameState.currentPlayerTurn}`)
+        },
+        [handleShowdown],
     )
 
     // Start a new hand in the game
@@ -359,14 +616,14 @@ function PokerRoomContent() {
         }
     }, [searchParams, autoSeatPlayer])
 
-    // Configuración inicial del worker de Aleo
+    // Initial configuration of the Aleo worker
     useEffect(() => {
         if (!aleoWorker) return
 
-        // Inicializar el worker
+        // Initialize the worker
         aleoWorker.postMessage({ type: 'init' })
 
-        // Escuchar mensajes del worker
+        // Listen to messages from the worker
         aleoWorker.onmessage = event => {
             console.log('Worker message:', event.data)
 
@@ -379,7 +636,7 @@ function PokerRoomContent() {
                     setBlockchainTxId(event.data.txId)
                     console.log(`Game created on blockchain with ID: ${event.data.gameId} and txID: ${event.data.txId}`)
 
-                    // Aquí podríamos iniciar el juego en la UI
+                    // Here we could start the game in the UI
                     setGameNotification({
                         message: `Game created on blockchain! ID: ${event.data.gameId}`,
                         type: 'success',
@@ -399,7 +656,7 @@ function PokerRoomContent() {
                     setBlockchainTxId(event.data.txId)
                     console.log(`Joined game on blockchain with ID: ${event.data.gameId} and txID: ${event.data.txId}`)
 
-                    // Aquí podríamos actualizar la UI para mostrar que se unió al juego
+                    // Here we could update the UI to show that the user joined the game
                     setGameNotification({
                         message: `Joined game on blockchain! ID: ${event.data.gameId}`,
                         type: 'success',
@@ -413,7 +670,7 @@ function PokerRoomContent() {
                     })
                 }
             }
-            // Más handlers para otras acciones del juego...
+            // More handlers for other game actions...
         }
 
         return () => {
@@ -423,7 +680,7 @@ function PokerRoomContent() {
         }
     }, [])
 
-    // Verificar conexión de wallet antes de iniciar
+    // Check wallet connection before starting
     useEffect(() => {
         if (!connected && publicKey) {
             console.log('Wallet not connected. Please connect your wallet to play.')
@@ -434,37 +691,7 @@ function PokerRoomContent() {
         }
     }, [connected, publicKey])
 
-    // Función para crear un nuevo juego en la blockchain
-    const createBlockchainGame = async (privateKey: string) => {
-        if (!aleoWorker || !connected) {
-            console.error('Cannot create game: Worker not initialized or wallet not connected')
-            return
-        }
-
-        try {
-            setBlockchainStatus('creating')
-            // Generar un ID de juego único basado en timestamp
-            const gameId = Date.now() % 100000 // Número más pequeño para la blockchain
-            console.log(`Creating blockchain game with ID: ${gameId}`)
-
-            // Enviar mensaje al worker para crear juego
-            aleoWorker.postMessage({
-                type: 'create_game',
-                gameId,
-                privateKey,
-                buyIn: playerData.chips, // Usar los chips del jugador como buy-in
-            })
-        } catch (error) {
-            console.error('Error creating blockchain game:', error)
-            setBlockchainStatus('error')
-            setGameNotification({
-                message: `Error creating game: ${error instanceof Error ? error.message : 'Unknown error'}`,
-                type: 'error',
-            })
-        }
-    }
-
-    // Marcar la función como planeada pero no implementada completamente
+    // Mark the function as planned but not fully implemented
     const _joinBlockchainGame = async (gameId: number, privateKey: string) => {
         if (!aleoWorker || !connected) {
             console.error('Cannot join game: Worker not initialized or wallet not connected')
@@ -475,7 +702,7 @@ function PokerRoomContent() {
             setBlockchainStatus('joining')
             console.log(`Joining blockchain game with ID: ${gameId}`)
 
-            // Enviar mensaje al worker para unirse al juego
+            // Send message to worker to join game
             aleoWorker.postMessage({
                 type: 'join_game',
                 gameId,
@@ -752,239 +979,199 @@ function PokerRoomContent() {
     }
 
     /**
+     * Advance to the next player's turn
+     */
+    const advanceToNextPlayer = useCallback(
+        (gameState: GameState) => {
+            // Get the next player in turn
+            const nextPlayerPosition = getNextPlayerInTurn(gameState, gameState.currentPlayerTurn)
+
+            console.log(
+                `advanceToNextPlayer called, current player: ${gameState.currentPlayerTurn}, next player: ${nextPlayerPosition}`,
+            )
+
+            // If there's no next player (all folded or all-in), end the round
+            if (nextPlayerPosition === null) {
+                console.log('No next player found, ending betting round and advancing game phase')
+                // End current betting round and advance to next phase
+                advanceGamePhase(gameState)
+                return
+            }
+
+            // Set the next player as the current turn
+            gameState.currentPlayerTurn = nextPlayerPosition
+            console.log(`Turn advanced to player at position ${nextPlayerPosition}`)
+        },
+        [advanceGamePhase],
+    )
+
+    /**
      * Handle the "call" action
      */
-    const handleCallAction = (gameState: GameState, player: Player) => {
-        console.log('Processing call action...')
-        console.log(`Player current bet: ${player.currentBet}, chips: ${player.chips}`)
+    const handleCallAction = useCallback(
+        (gameState: GameState, player: Player) => {
+            console.log('Processing call action...')
+            console.log(`Player current bet: ${player.currentBet}, chips: ${player.chips}`)
 
-        // Play call sound
-        soundService.playSfx('CALL')
+            // Play call sound
+            soundService.playSfx('CALL')
 
-        // Clear the new betting round flag since a player has acted
-        gameState.isNewBettingRound = false
+            // Clear the new betting round flag since a player has acted
+            gameState.isNewBettingRound = false
 
-        // Find the highest bet at the table
-        const highestBet = Math.max(...gameState.players.map(p => p.currentBet))
-        console.log(`Highest bet at table: ${highestBet}`)
+            // Find the highest bet at the table
+            const highestBet = Math.max(...gameState.players.map(p => p.currentBet))
+            console.log(`Highest bet at table: ${highestBet}`)
 
-        // Calculate how much more the player needs to add to call
-        const amountToCall = highestBet - player.currentBet
-        console.log(`Amount needed to call: ${amountToCall}`)
+            // Calculate how much more the player needs to add to call
+            const amountToCall = highestBet - player.currentBet
+            console.log(`Amount needed to call: ${amountToCall}`)
 
-        // Check if player has enough chips to call
-        if (player.chips < amountToCall) {
-            console.error(`Not enough chips to call. Need ${amountToCall} but only have ${player.chips}`)
-            return
-        }
+            // Check if player has enough chips to call
+            if (player.chips < amountToCall) {
+                console.error(`Not enough chips to call. Need ${amountToCall} but only have ${player.chips}`)
+                return
+            }
 
-        console.log(`Player calls ${amountToCall} (total bet will be ${player.currentBet + amountToCall})`)
+            console.log(`Player calls ${amountToCall} (total bet will be ${player.currentBet + amountToCall})`)
 
-        // Deduct the call amount from player's chips
-        player.chips -= amountToCall
+            // Deduct the call amount from player's chips
+            player.chips -= amountToCall
 
-        // Add the call amount to player's current bet
-        player.currentBet += amountToCall
+            // Add the call amount to player's current bet
+            player.currentBet += amountToCall
 
-        // Add the call amount to the pot
-        gameState.pot += amountToCall
+            // Add the call amount to the pot
+            gameState.pot += amountToCall
 
-        console.log(`Call processed. Player now has ${player.chips} chips and current bet of ${player.currentBet}`)
-        console.log(`New pot total: ${gameState.pot}`)
+            console.log(`Call processed. Player now has ${player.chips} chips and current bet of ${player.currentBet}`)
+            console.log(`New pot total: ${gameState.pot}`)
 
-        // Check if betting round is complete after this call
-        if (isBettingRoundComplete(gameState)) {
-            console.log('After call, betting round is complete!')
-            advanceGamePhase(gameState)
-        } else {
-            // Advance to the next player only if betting round isn't complete
-            advanceToNextPlayer(gameState)
-        }
+            // Check if betting round is complete after this call
+            if (isBettingRoundComplete(gameState)) {
+                console.log('After call, betting round is complete!')
+                advanceGamePhase(gameState)
+            } else {
+                // Advance to the next player only if betting round isn't complete
+                advanceToNextPlayer(gameState)
+            }
 
-        // Update the game state
-        setGameState({ ...gameState })
-    }
+            // Update the game state
+            setGameState({ ...gameState })
+        },
+        [advanceGamePhase, advanceToNextPlayer],
+    )
 
     /**
      * Handle the "check" action
      */
-    const handleCheckAction = (gameState: GameState, player: Player) => {
-        console.log('Processing check action...')
+    const handleCheckAction = useCallback(
+        (gameState: GameState, player: Player) => {
+            console.log('Processing check action...')
 
-        // Play check sound
-        soundService.playSfx('CHECK')
+            // Play check sound
+            soundService.playSfx('CHECK')
 
-        // Clear the new betting round flag since a player has acted
-        gameState.isNewBettingRound = false
+            // Clear the new betting round flag since a player has acted
+            gameState.isNewBettingRound = false
 
-        // Verify that the player can check (no bets or player has matched the highest bet)
-        const highestBet = Math.max(...gameState.players.map(p => p.currentBet))
+            // Verify that the player can check (no bets or player has matched the highest bet)
+            const highestBet = Math.max(...gameState.players.map(p => p.currentBet))
 
-        if (highestBet > player.currentBet) {
-            console.error(`Cannot check, there's a bet to call: ${highestBet}`)
-            return
-        }
+            if (highestBet > player.currentBet) {
+                console.error(`Cannot check, there's a bet to call: ${highestBet}`)
+                return
+            }
 
-        console.log(`Player checks (current bet: ${player.currentBet})`)
+            console.log(`Player checks (current bet: ${player.currentBet})`)
 
-        // Check if betting round is complete after this check
-        if (isBettingRoundComplete(gameState)) {
-            console.log('After check, betting round is complete!')
-            advanceGamePhase(gameState)
-        } else {
-            // Advance to the next player only if betting round isn't complete
-            advanceToNextPlayer(gameState)
-        }
+            // Check if betting round is complete after this check
+            if (isBettingRoundComplete(gameState)) {
+                console.log('After check, betting round is complete!')
+                advanceGamePhase(gameState)
+            } else {
+                // Advance to the next player only if betting round isn't complete
+                advanceToNextPlayer(gameState)
+            }
 
-        // Update the game state
-        setGameState({ ...gameState })
-    }
+            // Update the game state
+            setGameState({ ...gameState })
+        },
+        [advanceGamePhase, advanceToNextPlayer],
+    )
 
     /**
      * Handle the "fold" action
      */
-    const handleFoldAction = (gameState: GameState, player: Player) => {
-        console.log('Processing fold action...')
+    const handleFoldAction = useCallback(
+        (gameState: GameState, player: Player) => {
+            console.log('Processing fold action...')
 
-        // Play fold sound
-        soundService.playSfx('FOLD')
+            // Play fold sound
+            soundService.playSfx('FOLD')
 
-        // Clear the new betting round flag since a player has acted
-        gameState.isNewBettingRound = false
+            // Clear the new betting round flag since a player has acted
+            gameState.isNewBettingRound = false
 
-        // Mark the player as folded
-        player.status = 'folded'
-        console.log(`Player ${player.id} folded`)
+            // Mark the player as folded
+            player.status = 'folded'
+            console.log(`Player ${player.id} folded`)
 
-        // Show fold notification
-        const isHuman = player.id === gameState.humanPlayerId
-        setGameNotification({
-            message: isHuman ? 'You folded' : `Opponent folded`,
-            type: 'info',
-        })
-
-        // In a heads-up game (2 players) or when only one active player remains,
-        // immediately award the pot and start a new hand
-        const activePlayers = gameState.players.filter(p => p.status === 'active' || p.status === 'all-in')
-        console.log(`Active players remaining: ${activePlayers.length}`)
-
-        // If there's only one active player left or this is a heads-up game and someone folded
-        if (activePlayers.length === 1 || gameState.players.length === 2) {
-            // The remaining active player wins the pot
-            const winner = activePlayers[0]
-            const isHumanWinner = winner.id === gameState.humanPlayerId
-            console.log(`Player ${winner.id} wins by default (opponent folded)`)
-
-            // Award the pot to the winner
-            winner.chips += gameState.pot
-            console.log(`Awarding pot of ${gameState.pot} to player ${winner.id}`)
-
-            // Show winning notification
+            // Show fold notification
+            const isHuman = player.id === gameState.humanPlayerId
             setGameNotification({
-                message: isHumanWinner ? `You win ${gameState.pot} chips!` : `Opponent wins ${gameState.pot} chips`,
-                type: 'success',
-            })
-
-            // Show temporary winning message
-            setGameStatus('finished')
-
-            // Begin a new hand after a delay
-            setTimeout(() => {
-                // Clear notification before starting new hand
-                setGameNotification({ message: '', type: null })
-                startNewHand(gameState)
-            }, 3000)
-
-            return
-        }
-
-        // If more than one active player and not a heads-up game, advance to the next player
-        advanceToNextPlayer(gameState)
-
-        // Update the game state
-        setGameState({ ...gameState })
-
-        // Clear notification after 3 seconds
-        setTimeout(() => {
-            setGameNotification({ message: '', type: null })
-        }, 3000)
-    }
-
-    /**
-     * Start a new hand after the current one ends
-     */
-    const startNewHand = (gameState: GameState) => {
-        console.log('Starting a new hand...')
-        console.log('Previous community cards:', gameState.communityCards)
-
-        // Reset the game state but keep players at the table
-        // Usando un deep copy para evitar problemas con referencias
-        const newGameState = JSON.parse(JSON.stringify(gameState))
-
-        // Reset game properties
-        newGameState.pot = 0
-        newGameState.sidePots = []
-        newGameState.communityCards = []
-        newGameState.currentBettingRound = null
-        newGameState.currentPlayerTurn = null
-        newGameState.gamePhase = 'waiting'
-
-        console.log('After reset community cards:', newGameState.communityCards)
-
-        // Reset all players' states
-        newGameState.players.forEach((player: Player) => {
-            player.holeCards = []
-            player.currentBet = 0
-            player.status = 'active'
-        })
-
-        // Rotate dealer, SB, BB positions for the next hand
-        rotateTablePositions(newGameState)
-
-        // Create and shuffle a fresh deck for the new hand
-        const suits = ['h', 'd', 'c', 's'] // hearts, diamonds, clubs, spades
-        const values = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
-        const freshDeck = suits.flatMap(suit => values.map(value => `${value}${suit}`))
-        newGameState.deck = shuffleDeck(freshDeck)
-
-        // Update game state
-        setGameState(newGameState)
-
-        // Reset game notification
-        setGameNotification({ message: '', type: null })
-
-        // Start a new hand after a short delay
-        setTimeout(() => {
-            // Update game status
-            setGameStatus('playing')
-
-            // Deal cards to players
-            dealHoleCards(newGameState)
-
-            // Set current player turn (after big blind)
-            setCurrentPlayerTurn(newGameState)
-
-            // Update game phase and betting round
-            newGameState.gamePhase = 'betting'
-            newGameState.currentBettingRound = 'pre-flop'
-
-            // Show notification for new hand
-            setGameNotification({
-                message: 'New Hand Dealt',
+                message: isHuman ? 'You folded' : `Opponent folded`,
                 type: 'info',
             })
 
-            // Clear notification after a delay
+            // In a heads-up game (2 players) or when only one active player remains,
+            // immediately award the pot and start a new hand
+            const activePlayers = gameState.players.filter(p => p.status === 'active' || p.status === 'all-in')
+            console.log(`Active players remaining: ${activePlayers.length}`)
+
+            // If there's only one active player left or this is a heads-up game and someone folded
+            if (activePlayers.length === 1 || gameState.players.length === 2) {
+                // The remaining active player wins the pot
+                const winner = activePlayers[0]
+                const isHumanWinner = winner.id === gameState.humanPlayerId
+                console.log(`Player ${winner.id} wins by default (opponent folded)`)
+
+                // Award the pot to the winner
+                winner.chips += gameState.pot
+                console.log(`Awarding pot of ${gameState.pot} to player ${winner.id}`)
+
+                // Show winning notification
+                setGameNotification({
+                    message: isHumanWinner ? `You win ${gameState.pot} chips!` : `Opponent wins ${gameState.pot} chips`,
+                    type: 'success',
+                })
+
+                // Show temporary winning message
+                setGameStatus('finished')
+
+                // Begin a new hand after a delay
+                setTimeout(() => {
+                    // Clear notification before starting new hand
+                    setGameNotification({ message: '', type: null })
+                    startNewHand(gameState)
+                }, 3000)
+
+                return
+            }
+
+            // If more than one active player and not a heads-up game, advance to the next player
+            advanceToNextPlayer(gameState)
+
+            // Update the game state
+            setGameState({ ...gameState })
+
+            // Clear notification after 3 seconds
             setTimeout(() => {
                 setGameNotification({ message: '', type: null })
-            }, 2000)
-
-            // Update game state
-            setGameState({ ...newGameState })
-
-            // AI action will be handled by the useEffect
-        }, 1000)
-    }
+            }, 3000)
+        },
+        [advanceToNextPlayer, startNewHand],
+    )
 
     /**
      * Rotate table positions (dealer, small blind, big blind)
@@ -1038,82 +1225,63 @@ function PokerRoomContent() {
     }
 
     /**
-     * Advance to the next player's turn
-     */
-    const advanceToNextPlayer = (gameState: GameState) => {
-        // Get the next player in turn
-        const nextPlayerPosition = getNextPlayerInTurn(gameState, gameState.currentPlayerTurn)
-
-        console.log(
-            `advanceToNextPlayer called, current player: ${gameState.currentPlayerTurn}, next player: ${nextPlayerPosition}`,
-        )
-
-        // If there's no next player (all folded or all-in), end the round
-        if (nextPlayerPosition === null) {
-            console.log('No next player found, ending betting round and advancing game phase')
-            // End current betting round and advance to next phase
-            advanceGamePhase(gameState)
-            return
-        }
-
-        // Set the next player as the current turn
-        gameState.currentPlayerTurn = nextPlayerPosition
-        console.log(`Turn advanced to player at position ${nextPlayerPosition}`)
-    }
-
-    /**
      * Handle the "bet" action
      */
-    const handleBetAction = (gameState: GameState, player: Player, amount: number) => {
-        console.log(`Processing bet/raise action with amount: ${amount}...`)
+    const handleBetAction = useCallback(
+        (gameState: GameState, player: Player, amount: number) => {
+            console.log(`Processing bet/raise action with amount: ${amount}...`)
 
-        // Play bet/chip sound
-        soundService.playSfx('BET')
+            // Play bet/chip sound
+            soundService.playSfx('BET')
 
-        // Clear the new betting round flag since a player has acted
-        gameState.isNewBettingRound = false
+            // Clear the new betting round flag since a player has acted
+            gameState.isNewBettingRound = false
 
-        // Verify the player has enough chips
-        if (player.chips < amount) {
-            console.error(`Not enough chips to bet ${amount}. Only have ${player.chips}`)
-            return
-        }
+            // Verify the player has enough chips
+            if (player.chips < amount) {
+                console.error(`Not enough chips to bet ${amount}. Only have ${player.chips}`)
+                return
+            }
 
-        // Ensure bet is at least the minimum bet
-        if (amount < gameState.minBet) {
-            console.log(`Bet amount (${amount}) is less than minimum bet (${gameState.minBet}), increasing to minimum`)
-            amount = gameState.minBet
-        }
+            // Ensure bet is at least the minimum bet
+            if (amount < gameState.minBet) {
+                console.log(
+                    `Bet amount (${amount}) is less than minimum bet (${gameState.minBet}), increasing to minimum`,
+                )
+                amount = gameState.minBet
+            }
 
-        console.log(`Player bets ${amount}`)
+            console.log(`Player bets ${amount}`)
 
-        // Deduct bet from player's chips
-        player.chips -= amount
+            // Deduct bet from player's chips
+            player.chips -= amount
 
-        // Add bet to player's current bet
-        player.currentBet += amount
+            // Add bet to player's current bet
+            player.currentBet += amount
 
-        // Add bet to the pot
-        gameState.pot += amount
+            // Add bet to the pot
+            gameState.pot += amount
 
-        // Update last raise amount
-        gameState.lastRaiseAmount = amount
+            // Update last raise amount
+            gameState.lastRaiseAmount = amount
 
-        console.log(`Bet processed. Player now has ${player.chips} chips and current bet of ${player.currentBet}`)
-        console.log(`New pot total: ${gameState.pot}`)
+            console.log(`Bet processed. Player now has ${player.chips} chips and current bet of ${player.currentBet}`)
+            console.log(`New pot total: ${gameState.pot}`)
 
-        // Check if betting round is complete (shouldn't be after a bet, but check anyway)
-        if (isBettingRoundComplete(gameState)) {
-            console.log('After bet, betting round is complete!')
-            advanceGamePhase(gameState)
-        } else {
-            // Advance to the next player
-            advanceToNextPlayer(gameState)
-        }
+            // Check if betting round is complete (shouldn't be after a bet, but check anyway)
+            if (isBettingRoundComplete(gameState)) {
+                console.log('After bet, betting round is complete!')
+                advanceGamePhase(gameState)
+            } else {
+                // Advance to the next player
+                advanceToNextPlayer(gameState)
+            }
 
-        // Update the game state
-        setGameState({ ...gameState })
-    }
+            // Update the game state
+            setGameState({ ...gameState })
+        },
+        [advanceGamePhase, advanceToNextPlayer],
+    )
 
     // Track which seat is being hovered
     const [hoveredSeat, setHoveredSeat] = useState<number | null>(null)
@@ -1808,148 +1976,6 @@ function PokerRoomContent() {
             }
         }, 1500) // 1.5 second delay for more natural feel
     }, [gameState, getValidActions, handleCheckAction, handleCallAction, handleFoldAction, handleBetAction])
-
-    /**
-     * Advance the game phase after a betting round ends
-     */
-    const advanceGamePhase = (gameState: GameState): void => {
-        // If game is not in betting phase, do nothing
-        if (gameState.gamePhase !== 'betting') {
-            console.log(`Cannot advance game phase: current phase is ${gameState.gamePhase}, not 'betting'`)
-            return
-        }
-
-        console.log(`Advancing game phase from ${gameState.currentBettingRound}...`)
-
-        // Add a flag to mark this as a new betting round
-        // This will prevent immediate checking for round completion
-        gameState.isNewBettingRound = true
-
-        // Handle different betting rounds
-        switch (gameState.currentBettingRound) {
-            case 'pre-flop':
-                console.log('Pre-flop round complete, dealing flop...')
-                // Deal the flop (first three community cards)
-                dealFlop(gameState)
-                gameState.currentBettingRound = 'flop'
-                console.log("Flop dealt, betting round updated to 'flop'")
-                break
-
-            case 'flop':
-                console.log('Flop round complete, dealing turn...')
-                // Deal the turn (fourth community card)
-                dealTurn(gameState)
-                gameState.currentBettingRound = 'turn'
-                console.log("Turn dealt, betting round updated to 'turn'")
-                break
-
-            case 'turn':
-                console.log('Turn round complete, dealing river...')
-                // Deal the river (fifth community card)
-                dealRiver(gameState)
-                gameState.currentBettingRound = 'river'
-                console.log("River dealt, betting round updated to 'river'")
-                break
-
-            case 'river':
-                console.log('River round complete, moving to showdown...')
-                // Move to showdown
-                gameState.gamePhase = 'showdown'
-                gameState.currentBettingRound = 'showdown'
-                console.log("Game phase updated to 'showdown'")
-                // Evaluate hands and determine the winner
-                handleShowdown(gameState)
-                break
-
-            default:
-                console.error('Unknown betting round:', gameState.currentBettingRound)
-        }
-
-        // Reset bets for the new round if not at showdown
-        if (gameState.currentBettingRound !== 'showdown') {
-            resetBetsForNewRound(gameState)
-
-            // Set the player after the dealer as the first to act in post-flop rounds
-            const sortedPlayers = [...gameState.players].sort((a, b) => a.position - b.position)
-            const dealerIndex = sortedPlayers.findIndex(p => p.isDealer)
-            const firstToActIndex = (dealerIndex + 1) % sortedPlayers.length
-
-            // Check if this player is still active
-            if (sortedPlayers[firstToActIndex].status === 'active') {
-                gameState.currentPlayerTurn = sortedPlayers[firstToActIndex].position
-                console.log(`First player to act after dealer is at position ${gameState.currentPlayerTurn}`)
-            } else {
-                // Find the next active player
-                gameState.currentPlayerTurn = getNextPlayerInTurn(gameState, sortedPlayers[firstToActIndex].position)
-                console.log(
-                    `First player is not active, next active player is at position ${gameState.currentPlayerTurn}`,
-                )
-            }
-        }
-
-        console.log(`Advanced to ${gameState.currentBettingRound}, turn: ${gameState.currentPlayerTurn}`)
-    }
-
-    /**
-     * Handle the showdown phase (determine winner)
-     */
-    const handleShowdown = (gameState: GameState): void => {
-        console.log('Handling showdown...')
-
-        // Show showdown notification
-        setGameNotification({
-            message: 'Showdown!',
-            type: 'info',
-        })
-
-        // Get active players
-        const activePlayers = gameState.players.filter(p => p.status === 'active' || p.status === 'all-in')
-
-        if (activePlayers.length === 0) {
-            console.error('No active players at showdown')
-            return
-        }
-
-        // Calculate hand strength for each player
-        const playerStrengths = activePlayers.map(player => {
-            const handStrength = evaluateHandStrength(player.holeCards, gameState.communityCards)
-            return { player, handStrength }
-        })
-
-        // Sort players by hand strength (highest first)
-        playerStrengths.sort((a, b) => b.handStrength - a.handStrength)
-
-        // The winner is the player with the highest hand strength
-        const winner = playerStrengths[0].player
-        const isHumanWinner = winner.id === gameState.humanPlayerId
-
-        console.log(
-            `Player ${winner.id} wins the pot of ${gameState.pot} with hand strength ${playerStrengths[0].handStrength}`,
-        )
-
-        // Award pot to winner
-        winner.chips += gameState.pot
-
-        // Play win sound
-        soundService.playSfx('WIN')
-
-        // Show winning notification after a short delay
-        setTimeout(() => {
-            setGameNotification({
-                message: isHumanWinner ? `You win ${gameState.pot} chips!` : `Opponent wins ${gameState.pot} chips`,
-                type: 'success',
-            })
-
-            // Set game as finished
-            setGameStatus('finished')
-
-            // Begin a new hand after a delay
-            setTimeout(() => {
-                setGameNotification({ message: '', type: null })
-                startNewHand(gameState)
-            }, 3000)
-        }, 2000)
-    }
 
     /**
      * For a real poker game, this would evaluate hand strength
