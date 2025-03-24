@@ -55,7 +55,7 @@ export function PlayButton({ onClick, disabled = false, onDisabledClick }: PlayB
                     aria-hidden='true'>
                     <div className='absolute inset-0 opacity-70'>
                         <Image
-                            src='/play-button-glow.svg'
+                            src='/images/lobby/play-button-glow.svg'
                             alt=''
                             fill
                             className='object-contain'
@@ -67,7 +67,7 @@ export function PlayButton({ onClick, disabled = false, onDisabledClick }: PlayB
 
             {/* Original button */}
             <Image
-                src='/play-button.svg'
+                src='/images/lobby/play-button.svg'
                 alt={disabled ? 'Play (Disabled)' : 'Play'}
                 fill
                 sizes='(max-width: 768px) 100vw, 80vw'
