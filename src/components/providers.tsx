@@ -1,12 +1,12 @@
 'use client'
 
+import { DecryptPermission, WalletAdapterNetwork } from '@demox-labs/aleo-wallet-adapter-base'
 import { WalletProvider } from '@demox-labs/aleo-wallet-adapter-react'
 import { WalletModalProvider } from '@demox-labs/aleo-wallet-adapter-reactui'
+import { LeoWalletAdapter, PuzzleWalletAdapter } from 'aleo-adapters'
 import { useMemo } from 'react'
 
-import { DecryptPermission, WalletAdapterNetwork } from '@demox-labs/aleo-wallet-adapter-base'
 import '@demox-labs/aleo-wallet-adapter-reactui/styles.css'
-import { LeoWalletAdapter, PuzzleWalletAdapter } from 'aleo-adapters'
 
 export default function Providers({ children }: { children: React.ReactNode }) {
     const wallets = useMemo(
