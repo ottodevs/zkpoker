@@ -40,3 +40,152 @@ body {
 .animate-fade-in-down {
     animation: fadeInDown 0.5s ease-out forwards;
 }
+
+/* Error card animations */
+@keyframes errorCardFall {
+    0% {
+        transform: translateY(-10vh) rotate(var(--card-rotation));
+        opacity: 0;
+    }
+    10% {
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(120vh) rotate(var(--card-rotation));
+        opacity: 0;
+    }
+}
+
+@keyframes wiggle {
+    0%,
+    100% {
+        transform: rotate(-3deg);
+    }
+    50% {
+        transform: rotate(3deg);
+    }
+}
+
+@keyframes pulse {
+    0%,
+    100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.6;
+    }
+}
+
+@keyframes pulseSlow {
+    0%,
+    100% {
+        opacity: 0.7;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.3;
+        transform: scale(1.05);
+    }
+}
+
+@keyframes pulseMedium {
+    0%,
+    100% {
+        opacity: 0.8;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.5;
+        transform: scale(1.05);
+    }
+}
+
+@keyframes pulseFast {
+    0%,
+    100% {
+        opacity: 0.9;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.7;
+        transform: scale(1.03);
+    }
+}
+
+@keyframes inputAttention {
+    0%,
+    100% {
+        transform: translateX(0);
+        box-shadow: 0 0 15px rgba(77, 240, 180, 0.4);
+    }
+    10%,
+    30%,
+    50%,
+    70%,
+    90% {
+        transform: translateX(-4px);
+        box-shadow: 0 0 25px rgba(77, 240, 180, 0.6);
+    }
+    20%,
+    40%,
+    60%,
+    80% {
+        transform: translateX(4px);
+        box-shadow: 0 0 25px rgba(77, 240, 180, 0.6);
+    }
+}
+
+/* Arcade-style animation */
+@keyframes gradientX {
+    0% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+.animate-pulse-slow {
+    animation: pulseSlow 2s ease-in-out infinite;
+}
+
+.animate-pulse-medium {
+    animation: pulseMedium 1.5s ease-in-out infinite;
+}
+
+.animate-pulse-fast {
+    animation: pulseFast 0.8s ease-in-out infinite;
+}
+
+.animate-input-attention {
+    animation: inputAttention 0.8s ease-in-out;
+}
+
+.animate-gradient-x {
+    background-size: 200% 100%;
+    animation: gradientX 3s ease infinite;
+}
+
+.animate-error-card-fall {
+    animation: errorCardFall 1.2s ease-in forwards var(--animation-delay);
+}
+
+.rotate-15 {
+    transform: rotate(15deg);
+}
+
+.-rotate-15 {
+    transform: rotate(-15deg);
+}
+
+.wallet-adapter-button {
+    color: #000;
+    font-weight: bold;
+}
+
+.wallet-adapter-modal-list > li > .wallet-adapter-button {
+    color: white;
+}
