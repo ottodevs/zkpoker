@@ -1,3 +1,4 @@
+import { cn } from '@/lib/utils'
 import Image from 'next/image'
 import { useState } from 'react'
 
@@ -36,15 +37,16 @@ export function AvatarButton({ avatarNumber, isSelected = false, onClick }: Avat
 
             {/* Avatar container with border styles */}
             <div
-                className={`relative size-20 overflow-hidden rounded-full transition-transform duration-200 ${
+                className={cn(
+                    'relative size-20 overflow-hidden rounded-full transition-transform duration-200',
                     isSelected
                         ? 'scale-105 transform border-3 border-[#55ffbe]'
                         : isHovered
                           ? 'scale-105 transform border border-white/30'
-                          : 'border border-transparent'
-                }`}>
+                          : 'border border-transparent',
+                )}>
                 <Image
-                    src={`/avatar${avatarNumber}.png`}
+                    src={`/images/avatars/avatar${avatarNumber}.png`}
                     alt={`Avatar ${avatarNumber}`}
                     fill
                     sizes='(max-width: 768px) 100vw, 80vw'
