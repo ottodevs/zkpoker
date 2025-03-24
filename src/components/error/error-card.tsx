@@ -21,7 +21,7 @@ export default function ErrorCard({ rotate, delay, position }: ErrorCardProps) {
             }>
             <div className='relative h-36 w-28'>
                 <Image
-                    src='/backofcard.png'
+                    src='/images/table/cards/backofcard.png'
                     alt='Card'
                     fill
                     className='drop-shadow-2xl'

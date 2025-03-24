@@ -31,7 +31,7 @@ export default function ErrorLayout({ children, cardCount = 8 }: ErrorLayoutProp
             <div className='fixed inset-0 z-0'>
                 <div className='absolute inset-0 bg-[#142030] opacity-90' />
                 <Image
-                    src='/poker-table.svg'
+                    src='/images/table/poker-table.svg'
                     alt='Poker Table'
                     fill
                     className='object-contain opacity-20'
@@ -50,7 +50,7 @@ export default function ErrorLayout({ children, cardCount = 8 }: ErrorLayoutProp
             <div className='relative z-20 mx-auto flex w-full max-w-2xl flex-col items-center px-4 pt-32 text-center'>
                 {/* Logo */}
                 <div className='relative mb-4 h-40 w-200'>
-                    <Image src='/bottom-logo-faded.svg' alt='Mental Poker' fill className='mb-8' />
+                    <Image src='/images/logos/bottom-logo-faded.svg' alt='Mental Poker' fill className='mb-8' />
                 </div>
 
                 {children}
