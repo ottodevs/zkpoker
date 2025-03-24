@@ -10,7 +10,7 @@ export default function LobbyFooter() {
         <footer className='flex h-[102px] w-full items-center justify-between rounded-br-3xl rounded-bl-3xl border-2 border-[#37455e] bg-[#27374a] px-4 sm:px-6 md:px-8'>
             <div className='flex items-center gap-3'>
                 <Image
-                    src='/bottom-logo-faded.svg'
+                    src='/images/logos/bottom-logo-faded.svg'
                     alt='Mental Poker'
                     width={268}
                     height={30}
