@@ -21,7 +21,7 @@
 body {
     background: var(--background);
     color: var(--foreground);
-    font-family: var(--font-sans);
+    font-family: var(--font-exo);
 }
 
 /* Add the animate-fade-in-down animation */
@@ -124,7 +124,7 @@ body {
     70%,
     90% {
         transform: translateX(-4px);
-        box-shadow: 0 0 25px rgba(77, 240, 180, 0.6);
+        box-shadow: 0 0 25px rgba(77, 239, 180, 0.6);
     }
     20%,
     40%,
@@ -184,8 +184,17 @@ body {
 .wallet-adapter-button {
     color: #000;
     font-weight: bold;
+    font-family: var(--font-exo);
 }
 
 .wallet-adapter-modal-list > li > .wallet-adapter-button {
     color: white;
+    font-family: var(--font-exo);
+    &:hover {
+        background-color: rgba(77, 240, 180, 0.6);
+    }
+}
+
+.wallet-adapter-modal-title {
+    font-family: var(--font-exo);
 }
