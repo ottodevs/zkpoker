@@ -9,12 +9,11 @@ import {
 } from '@provablehq/sdk'
 
 // Console logging with emojis for better debugging
-const logInit = message => console.log(`🚀 [Worker-Init] ${message}`)
-const logError = (message, error) => console.error(`❌ [Worker-Error] ${message}`, error || '')
-const logInfo = message => console.log(`ℹ️ [Worker-Info] ${message}`)
-const logAction = (action, message) => console.log(`🎮 [Worker-${action}] ${message}`)
-
-logInit('Worker starting...')
+const logInit = (message: string) => console.log(`🚀 [Worker-Init] ${message}`)
+const logError = (message: string, error?: Error | unknown) =>
+    console.error(`❌ [Worker-Error] ${message}`, error || '')
+const logInfo = (message: string) => console.log(`ℹ️ [Worker-Info] ${message}`)
+const logAction = (action: string, message: string) => console.log(`🎮 [Worker-${action}] ${message}`)
 
 // Program and network configuration
 const PROGRAM_NAME = 'mental_poker_trifecta.aleo'
@@ -24,9 +23,28 @@ const ENDPOINTS = {
 }
 
 // Default network (will be configurable through messages)
-let currentNetwork = 'local'
+let currentNetwork: 'local' | 'testnet' = 'local'
 
-// Initialize the worker
+// For error handling
+type ErrorWithMessage = Error | { message: string }
+
+// Get error message from unknown error
+const getErrorMessage = (error: unknown): string => {
+    if (error instanceof Error) return error.message
+    if (typeof error === 'string') return error
+    if (typeof error === 'object' && error !== null && 'message' in error) {
+        return (error as ErrorWithMessage).message
+    }
+    return 'Unknown error occurred'
+}
+
+// Type for execution results
+interface ExecutionResult {
+    txId: string
+    [key: string]: unknown
+}
+
+// Initialization function
 async function initialize() {
     try {
         logInit('Initializing worker thread pool...')
@@ -40,7 +58,7 @@ async function initialize() {
 }
 
 // Setup program manager
-function setupProgramManager(privateKey) {
+function setupProgramManager(privateKey: string): ProgramManager {
     try {
         const endpoint = ENDPOINTS[currentNetwork]
         logInfo(`Setting up program manager for ${currentNetwork} network at ${endpoint}`)
@@ -65,7 +83,7 @@ function setupProgramManager(privateKey) {
 }
 
 // Generate a private key for the account
-function getPrivateKey() {
+function getPrivateKey(): string | null {
     try {
         logAction('Key', 'Generating new private key')
         return new PrivateKey().to_string()
@@ -76,17 +94,18 @@ function getPrivateKey() {
 }
 
 // Create a new game
-async function createGame(gameId, privateKey, buyIn = 100) {
+async function createGame(gameId: number, privateKey: string, buyIn: number = 100) {
     try {
         logAction('Create', `Creating game with ID: ${gameId} and buy-in: ${buyIn}`)
         const programManager = setupProgramManager(privateKey)
 
-        const result = await programManager.execute({
+        const result = (await programManager.execute({
             programName: PROGRAM_NAME,
             functionName: 'create_game',
             inputs: [gameId.toString() + 'u32', buyIn.toString() + 'u64'],
             fee: 0.005, // Set an appropriate fee
-        })
+            privateFee: false, // Required parameter
+        })) as unknown as ExecutionResult
 
         logAction('Create', `Game ${gameId} created successfully: ${JSON.stringify(result)}`)
 
@@ -98,22 +117,28 @@ async function createGame(gameId, privateKey, buyIn = 100) {
         }
     } catch (error) {
         logError(`Error creating game ${gameId}`, error)
-        return { error: 'Failed to create game', details: error }
+        return {
+            gameId,
+            status: 'error',
+            error: 'Failed to create game',
+            details: getErrorMessage(error),
+        }
     }
 }
 
 // Join an existing game
-async function joinGame(gameId, privateKey) {
+async function joinGame(gameId: number, privateKey: string) {
     try {
         logAction('Join', `Joining game with ID: ${gameId}`)
         const programManager = setupProgramManager(privateKey)
 
-        const result = await programManager.execute({
+        const result = (await programManager.execute({
             programName: PROGRAM_NAME,
             functionName: 'join_game',
             inputs: [gameId.toString() + 'u32'],
             fee: 0.003, // Set an appropriate fee
-        })
+            privateFee: false, // Required parameter
+        })) as unknown as ExecutionResult
 
         logAction('Join', `Joined game ${gameId} successfully: ${JSON.stringify(result)}`)
 
@@ -125,22 +150,28 @@ async function joinGame(gameId, privateKey) {
         }
     } catch (error) {
         logError(`Error joining game ${gameId}`, error)
-        return { error: 'Failed to join game', details: error }
+        return {
+            gameId,
+            status: 'error',
+            error: 'Failed to join game',
+            details: getErrorMessage(error),
+        }
     }
 }
 
 // Place a bet in the game
-async function placeBet(gameId, amount, privateKey) {
+async function placeBet(gameId: number, amount: number, privateKey: string) {
     try {
         logAction('Bet', `Placing bet of ${amount} in game ${gameId}`)
         const programManager = setupProgramManager(privateKey)
 
-        const result = await programManager.execute({
+        const result = (await programManager.execute({
             programName: PROGRAM_NAME,
             functionName: 'bet',
             inputs: [gameId.toString() + 'u32', amount.toString() + 'u16'],
             fee: 0.002, // Set an appropriate fee
-        })
+            privateFee: false, // Required parameter
+        })) as unknown as ExecutionResult
 
         logAction('Bet', `Bet of ${amount} placed in game ${gameId} successfully: ${JSON.stringify(result)}`)
 
@@ -153,12 +184,17 @@ async function placeBet(gameId, amount, privateKey) {
         }
     } catch (error) {
         logError(`Error placing bet in game ${gameId}`, error)
-        return { error: 'Failed to place bet', details: error }
+        return {
+            gameId,
+            status: 'error',
+            error: 'Failed to place bet',
+            details: getErrorMessage(error),
+        }
     }
 }
 
 // Get game state
-async function getGameState(gameId) {
+async function getGameState(gameId: number) {
     try {
         logAction('State', `Getting state for game ${gameId}`)
         const endpoint = ENDPOINTS[currentNetwork]
@@ -173,12 +209,17 @@ async function getGameState(gameId) {
         }
     } catch (error) {
         logError(`Error getting state for game ${gameId}`, error)
-        return { error: 'Failed to get game state', details: error }
+        return {
+            gameId,
+            status: 'error',
+            error: 'Failed to get game state',
+            details: getErrorMessage(error),
+        }
     }
 }
 
 // Get chips state
-async function getChipsState(gameId) {
+async function getChipsState(gameId: number) {
     try {
         logAction('Chips', `Getting chips for game ${gameId}`)
         const endpoint = ENDPOINTS[currentNetwork]
@@ -193,12 +234,17 @@ async function getChipsState(gameId) {
         }
     } catch (error) {
         logError(`Error getting chips for game ${gameId}`, error)
-        return { error: 'Failed to get chips state', details: error }
+        return {
+            gameId,
+            status: 'error',
+            error: 'Failed to get chips state',
+            details: getErrorMessage(error),
+        }
     }
 }
 
 // Get cards state
-async function getCardsState(gameId) {
+async function getCardsState(gameId: number) {
     try {
         logAction('Cards', `Getting cards for game ${gameId}`)
         const endpoint = ENDPOINTS[currentNetwork]
@@ -213,7 +259,12 @@ async function getCardsState(gameId) {
         }
     } catch (error) {
         logError(`Error getting cards for game ${gameId}`, error)
-        return { error: 'Failed to get cards state', details: error }
+        return {
+            gameId,
+            status: 'error',
+            error: 'Failed to get cards state',
+            details: getErrorMessage(error),
+        }
     }
 }
 
@@ -299,6 +350,6 @@ self.onmessage = async function (e) {
         }
     } catch (error) {
         logError(`Error handling action ${e.data?.action || 'unknown'}`, error)
-        self.postMessage({ type: 'error', result: `Error handling action: ${error}` })
+        self.postMessage({ type: 'error', result: `Error handling action: ${getErrorMessage(error)}` })
     }
 }
