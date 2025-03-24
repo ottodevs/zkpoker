@@ -1,5 +1,5 @@
+import * as AleoService from '@/services/aleo-service'
 import { useCallback, useEffect, useState } from 'react'
-import * as AleoService from '../services/AleoService'
 
 type NetworkType = 'local' | 'testnet'
 
