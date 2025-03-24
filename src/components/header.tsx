@@ -2,7 +2,6 @@
 
 import Image from 'next/image'
 import { useState } from 'react'
-import topLogo from '../../public/top-logo.svg'
 import { ConnectButton } from './connect-button'
 import SoundToggle from './sound-toggle'
 
@@ -12,12 +11,6 @@ interface HeaderProps {
 
 export default function Header({ onToggleMode }: HeaderProps) {
     const [mode, setMode] = useState('real') // real or free
-
-    // const handleToggle = () => {
-    //   const newMode = mode === 'real' ? 'free' : 'real';
-    //   setMode(newMode);
-    //   if (onToggleMode) onToggleMode(newMode);
-    // };
 
     return (
         <header className='flex items-center justify-between bg-[#0E1C2E] px-8 py-4'>
@@ -39,7 +32,7 @@ export default function Header({ onToggleMode }: HeaderProps) {
                     </svg>
                     <button className='z-10'>
                         <Image
-                            src='/settings-button.svg'
+                            src='/images/lobby/settings-button.svg'
                             alt='Settings'
                             width={28}
                             height={28}
@@ -76,7 +69,7 @@ export default function Header({ onToggleMode }: HeaderProps) {
                 </div>
 
                 <div className='relative h-10 w-60'>
-                    <Image src={topLogo} alt='Mental Poker' fill />
+                    <Image src='/images/logos/top-logo.svg' alt='Mental Poker' fill />
                 </div>
             </div>
 
@@ -101,7 +94,6 @@ export default function Header({ onToggleMode }: HeaderProps) {
                     </div>
                 </div>
 
-                {/* Connect wallet button */}
                 <ConnectButton />
             </div>
         </header>
