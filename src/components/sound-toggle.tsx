@@ -1,17 +1,17 @@
 'use client'
 
-import soundService from '@/services/sound-service'
+import { useSound } from '@/components/providers/sound-provider'
 import Image from 'next/image'
 import { useEffect, useRef, useState } from 'react'
 
 export default function SoundToggle() {
-    const [isMuted, setIsMuted] = useState(false)
+    const { isMuted, isMusicEnabled, musicVolume, sfxVolume, toggleMute, toggleMusic, setMusicVolume, setSfxVolume } =
+        useSound()
+
     const [isDropdownOpen, setIsDropdownOpen] = useState(false)
-    const [musicVolume, setMusicVolume] = useState(30)
-    const [sfxVolume, setSfxVolume] = useState(50)
     const dropdownRef = useRef<HTMLDivElement>(null)
 
-    // Initialize sound service when component mounts
+    // Setup click outside listener
     useEffect(() => {
         // Add click outside listener to close dropdown
         const handleClickOutside = (event: MouseEvent) => {
@@ -20,7 +20,10 @@ export default function SoundToggle() {
             }
         }
 
+        // Add event listener
         document.addEventListener('mousedown', handleClickOutside)
+
+        // Cleanup function
         return () => {
             document.removeEventListener('mousedown', handleClickOutside)
         }
@@ -31,34 +34,28 @@ export default function SoundToggle() {
         setIsDropdownOpen(!isDropdownOpen)
     }
 
-    const toggleMute = () => {
-        const muted = soundService.toggleMute()
-        setIsMuted(muted)
-    }
-
     const handleMusicVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = parseInt(e.target.value)
         setMusicVolume(value)
-        soundService.setMusicVolume(value / 100)
     }
 
     const handleSfxVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = parseInt(e.target.value)
         setSfxVolume(value)
-        soundService.setSfxVolume(value / 100)
     }
 
     return (
         <div className='relative' ref={dropdownRef}>
             <button
                 onClick={toggleDropdown}
-                className='flex h-10 w-10 items-center justify-center rounded-full transition-colors'
+                className='flex size-10 cursor-pointer items-center justify-center rounded-full transition-colors'
                 aria-label='Sound settings'>
-                {isMuted ? (
-                    <Image src='/icons/volume-mute.svg' alt='Sound muted' width={24} height={24} />
-                ) : (
-                    <Image src='/icons/volume-up.svg' alt='Sound on' width={24} height={24} />
-                )}
+                <Image
+                    src={`/images/icons/volume-${isMuted ? 'mute' : 'up'}.svg`}
+                    alt={isMuted ? 'Sound muted' : 'Sound on'}
+                    width={24}
+                    height={24}
+                />
             </button>
 
             {/* Dropdown Menu */}
@@ -70,6 +67,20 @@ export default function SoundToggle() {
                             onClick={toggleMute}
                             className='rounded bg-white/10 px-2 py-1 text-xs text-white hover:bg-white/20'>
                             {isMuted ? 'Unmute All' : 'Mute All'}
+                        </button>
+                    </div>
+
+                    {/* Music Toggle */}
+                    <div className='mb-4 flex items-center justify-between'>
+                        <span className='text-xs text-white'>Background Music</span>
+                        <button
+                            onClick={toggleMusic}
+                            className={`rounded px-2 py-1 text-xs text-white ${
+                                isMusicEnabled
+                                    ? 'bg-[#4DF0B4]/20 hover:bg-[#4DF0B4]/30'
+                                    : 'bg-white/10 hover:bg-white/20'
+                            }`}>
+                            {isMusicEnabled ? 'Enabled' : 'Disabled'}
                         </button>
                     </div>
 
@@ -86,6 +97,7 @@ export default function SoundToggle() {
                             value={musicVolume}
                             onChange={handleMusicVolumeChange}
                             className='h-2 w-full cursor-pointer appearance-none rounded-lg bg-white/20 accent-[#4DF0B4]'
+                            disabled={!isMusicEnabled}
                         />
                     </div>
 
