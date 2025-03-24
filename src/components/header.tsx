@@ -1,17 +1,10 @@
 'use client'
 
-import { Exo } from 'next/font/google'
 import Image from 'next/image'
 import { useState } from 'react'
 import topLogo from '../../public/top-logo.svg'
-import { LeoConnectButton } from './LeoConnectButton'
-import SoundToggle from './SoundToggle'
-
-const exo = Exo({
-    subsets: ['latin'],
-    display: 'swap',
-    weight: ['400', '500', '700'],
-})
+import { ConnectButton } from './connect-button'
+import SoundToggle from './sound-toggle'
 
 interface HeaderProps {
     onToggleMode?: (mode: string) => void
@@ -65,7 +58,7 @@ export default function Header({ onToggleMode }: HeaderProps) {
                             if (onToggleMode) onToggleMode('real')
                         }}>
                         <div className='inline-flex items-center justify-start'>
-                            <div className={`text-lg leading-tight font-bold text-white ${exo.className}`}>Real</div>
+                            <div className='text-lg leading-tight font-bold text-white'>Real</div>
                         </div>
                     </div>
 
@@ -77,23 +70,13 @@ export default function Header({ onToggleMode }: HeaderProps) {
                             if (onToggleMode) onToggleMode('free')
                         }}>
                         <div className='inline-flex items-center justify-start'>
-                            <div className={`text-lg leading-tight font-bold text-white ${exo.className}`}>Free</div>
+                            <div className='text-lg leading-tight font-bold text-white'>Free</div>
                         </div>
                     </div>
                 </div>
 
-                {/* Mental Poker Logo (true size) */}
-                <div className='flex w-auto items-center'>
-                    <Image
-                        src={topLogo}
-                        alt='Mental Poker'
-                        width={230}
-                        height={40}
-                        className='w-auto'
-                        loader={({ src, width, quality }) => {
-                            return `${src}?w=${width}&q=${quality || 75}`
-                        }}
-                    />
+                <div className='relative h-10 w-60'>
+                    <Image src={topLogo} alt='Mental Poker' fill />
                 </div>
             </div>
 
@@ -119,7 +102,7 @@ export default function Header({ onToggleMode }: HeaderProps) {
                 </div>
 
                 {/* Connect wallet button */}
-                <LeoConnectButton />
+                <ConnectButton />
             </div>
         </header>
     )
