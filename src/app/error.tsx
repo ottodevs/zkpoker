@@ -3,8 +3,6 @@
 import CardHand from '@/components/card-hand'
 import ErrorContent from '@/components/error/error-content'
 import ErrorLayout from '@/components/error/error-layout'
-import tenOfSpades from '@/public/cards/10s.svg'
-import threeOfDiamonds from '@/public/cards/3d.svg'
 import soundService from '@/services/sound-service'
 import { useEffect, useState } from 'react'
 
@@ -13,10 +11,12 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
     const [countdown, setCountdown] = useState(5)
 
     useEffect(() => {
-        // Play error sound
+        // Load sounds but only play if music is enabled
         try {
             soundService.preloadGameSounds()
-            soundService.playMusic('LOBBY')
+            if (soundService.isMusicEnabled()) {
+                soundService.playMusic('LOBBY')
+            }
         } catch (e) {
             console.error('Could not play sound:', e)
         }
@@ -34,7 +34,7 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
     return (
         <ErrorLayout>
             {/* Bad hand animation - different cards for error page */}
-            <CardHand card1={threeOfDiamonds} card2={tenOfSpades} className='mb-12' />
+            <CardHand card1='/images/cards/3d.svg' card2='/images/cards/10s.svg' className='mb-12' />
 
             <ErrorContent
                 title='Bad Beat!'
