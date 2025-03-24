@@ -1,8 +1,8 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 'use client'
 
-import PokerControl from '@/components/PokerControl'
-import soundService from '@/services/SoundService'
+import PokerControl from '@/components/poker-control'
+import soundService from '@/services/sound-service'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
@@ -59,7 +59,7 @@ type PlayerAction = 'check' | 'call' | 'bet' | 'raise' | 'fold' | 'all-in'
 // Crear una referencia al worker de Aleo
 const aleoWorker =
     typeof window !== 'undefined'
-        ? new Worker(new URL('../worker-poker.ts', import.meta.url), { type: 'module' })
+        ? new Worker(new URL('@/lib/workers/poker-worker.ts', import.meta.url), { type: 'module' })
         : null
 
 export default function PokerRoom() {
@@ -325,7 +325,9 @@ function PokerRoomContent() {
 
         // Initialize table music and sounds
         soundService.preloadGameSounds()
-        soundService.playMusic('TABLE')
+        if (soundService.isMusicEnabled()) {
+            soundService.playMusic('TABLE')
+        }
 
         if (searchParams) {
             const avatarIndex = parseInt(searchParams.get('avatar') || '0', 10)
@@ -624,7 +626,7 @@ function PokerRoomContent() {
         else if (cardValue === 'K' || cardValue === 'k') cardValue = '13'
         // Ace can stay as "A" since that's how the files are named
 
-        return `/cards/${cardValue}${suit}.svg`
+        return `/images/cards/${cardValue}${suit}.svg`
     }
 
     /**
@@ -1224,7 +1226,7 @@ function PokerRoomContent() {
                     <div className='relative'>
                         {/* Player avatar */}
                         <Image
-                            src='/opponent-ring.svg'
+                            src='/images/table/opponent-ring.svg'
                             alt='Player'
                             width={80}
                             height={80}
@@ -1233,7 +1235,7 @@ function PokerRoomContent() {
                         />
                         <div className='absolute top-[10px] left-[10px] h-[60px] w-[60px] overflow-hidden rounded-full'>
                             <Image
-                                src={`/avatar${playerAtSeat.avatarIndex + 1}.png`}
+                                src={`/images/avatars/avatar${playerAtSeat.avatarIndex + 1}.png`}
                                 alt={`Player ${seatNumber}`}
                                 width={60}
                                 height={60}
@@ -1275,7 +1277,7 @@ function PokerRoomContent() {
                                         ) : (
                                             <>
                                                 <Image
-                                                    src='/backofcard.png'
+                                                    src='/images/table/cards/backofcard.png'
                                                     alt='Card Back'
                                                     width={80}
                                                     height={120}
@@ -1284,7 +1286,7 @@ function PokerRoomContent() {
                                                     style={{ height: 'auto' }}
                                                 />
                                                 <Image
-                                                    src='/backofcard.png'
+                                                    src='/images/table/cards/backofcard.png'
                                                     alt='Card Back'
                                                     width={80}
                                                     height={120}
@@ -1321,7 +1323,7 @@ function PokerRoomContent() {
                     zIndex: isHovered ? 30 : 10,
                 }}>
                 <Image
-                    src='/empty-seat.svg'
+                    src='/images/table/empty-seat.svg'
                     alt='Empty Seat'
                     width={80}
                     height={80}
@@ -1409,7 +1411,7 @@ function PokerRoomContent() {
             6: { top: 'calc(17% + 20px)', left: 'calc(83% - 30px)' },
             7: { top: 'calc(40% + 14px)', left: 'calc(89% - 24px)' },
             8: { top: 'calc(58% + 26px)', left: 'calc(73% - 5px)' },
-            9: { top: 'calc(60% + 20px)', left: 'calc(50% - 10px)' },
+            9: { top: 'calc(65% + 20px)', left: 'calc(50% - 10px)' },
         }
 
         // Positions for regular bet chips (slightly closer to center)
@@ -2311,7 +2313,7 @@ function PokerRoomContent() {
         <div
             className='relative min-h-screen w-full overflow-hidden'
             style={{
-                backgroundImage: "url('/pokerback-ground.png')",
+                backgroundImage: "url('/images/lobby/pokerback-ground.png')",
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
                 backgroundRepeat: 'no-repeat',
@@ -2356,7 +2358,7 @@ function PokerRoomContent() {
                     className='poker-table-container relative'
                     style={{ minWidth: '1047px', width: '1047px', height: 'auto' }}>
                     <Image
-                        src='/poker-table.svg'
+                        src='/images/table/poker-table.svg'
                         alt='Poker Table'
                         width={1047}
                         height={534}
@@ -2505,7 +2507,7 @@ function PokerRoomContent() {
                                         left: getDealerButtonPosition(player.position).left,
                                     }}>
                                     <Image
-                                        src='/dealer-chip.svg'
+                                        src='/images/table/chips/dealer-chip.svg'
                                         alt='Dealer'
                                         width={40}
                                         height={40}
@@ -2538,8 +2540,8 @@ function PokerRoomContent() {
                                                 <Image
                                                     src={
                                                         player.currentBet >= CHIP_VALUES.GREEN
-                                                            ? '/green-chip.svg'
-                                                            : '/blue-chip.svg'
+                                                            ? '/images/table/chips/green-chip.svg'
+                                                            : '/images/table/chips/blue-chip.svg'
                                                     }
                                                     alt='Bottom Chip'
                                                     width={40}
@@ -2554,7 +2556,7 @@ function PokerRoomContent() {
                                             <Image
                                                 src={
                                                     player.currentBet >= CHIP_VALUES.GREEN
-                                                        ? '/green-chip.svg'
+                                                        ? '/images/table/chips/green-chip.svg'
                                                         : player.currentBet >= CHIP_VALUES.YELLOW
                                                           ? '/yellow-chip.svg'
                                                           : player.currentBet >= CHIP_VALUES.BLUE
