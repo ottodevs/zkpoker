@@ -37,6 +37,142 @@ interface TokenBalance {
     }
 }
 
+const CREDITS_PROGRAM_ID = 'credits.aleo'
+
+enum AleoChainId {
+    Localnet = 'localnet',
+    AleoTestnet = 'testnetbeta',
+}
+
+const ALEO_REST_API_BASE_URLS = new Map([
+    [AleoChainId.AleoTestnet, 'https://api.explorer.provable.com/v1'],
+    [AleoChainId.Localnet, 'http://localhost:3000'],
+])
+
+const ALEO_API_BASE_URLS = new Map([
+    [AleoChainId.AleoTestnet, 'https://testnetbeta.aleorpc.com'],
+    [AleoChainId.Localnet, 'http://localhost:3000'],
+])
+
+// Define RPC request/response types
+interface JsonRpcRequest {
+    jsonrpc: string
+    id: number | string
+    method: string
+    params: Record<string, unknown>
+}
+
+interface JsonRpcResponse {
+    jsonrpc: string
+    id: number | string
+    result?: unknown
+    error?: {
+        code: number
+        message: string
+        data?: unknown
+    }
+}
+
+// Simple JSON-RPC client implementation
+async function makeRpcRequest(url: string, method: string, params: Record<string, unknown>): Promise<unknown> {
+    const id = Date.now()
+    const request: JsonRpcRequest = {
+        jsonrpc: '2.0',
+        id,
+        method,
+        params,
+    }
+
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'content-type': 'application/json',
+            },
+            body: JSON.stringify(request),
+        })
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`)
+        }
+
+        const data: JsonRpcResponse = await response.json()
+
+        if (data.error) {
+            throw new Error(`RPC error: ${data.error.message}`)
+        }
+
+        return data.result
+    } catch (error) {
+        console.error('RPC request failed:', error)
+        throw error
+    }
+}
+
+async function getMappingValue(
+    chainId: AleoChainId,
+    mappingKey: string,
+    programId: string = 'credits.aleo',
+    mappingName: string = 'account',
+): Promise<string> {
+    const apiUrl = ALEO_API_BASE_URLS.get(chainId)
+    if (!apiUrl) {
+        throw new Error(`No API URL found for chain ID: ${chainId}`)
+    }
+
+    const result = await makeRpcRequest(apiUrl, 'getMappingValue', {
+        program_id: programId,
+        mapping_name: mappingName,
+        key: mappingKey,
+    })
+
+    // Type assertion since we know the result should be a string
+    return result as string
+}
+
+function parseBalanceString(balanceString: string): bigint {
+    try {
+        // Assuming the balance string format needs parsing similar to the original approach
+        return BigInt(balanceString.slice(0, -3))
+    } catch {
+        return BigInt(0)
+    }
+}
+
+async function getPublicBalance(
+    chainId: AleoChainId,
+    publicKey: string,
+    programId: string = CREDITS_PROGRAM_ID,
+): Promise<bigint> {
+    // Attempt to get the balance using the mapping value first
+    try {
+        const balanceString = await getMappingValue(chainId, publicKey, programId, 'account')
+        return parseBalanceString(balanceString)
+    } catch (error) {
+        console.error('Error getting balance from getMappingValue, trying direct API call', error)
+    }
+
+    // Fallback to direct API call if the above method fails
+    const apiUrl = ALEO_REST_API_BASE_URLS.get(chainId)
+    if (!apiUrl) {
+        console.error(`No REST API URL found for chain ID: ${chainId}`)
+        return BigInt(0)
+    }
+
+    try {
+        const response = await fetch(`${apiUrl}/testnet/program/${programId}/mapping/account/${publicKey}`)
+        if (response.ok) {
+            const balanceString = await response.json()
+            return parseBalanceString(balanceString)
+        }
+    } catch (error) {
+        console.error('Error getting balance from direct API call', error)
+    }
+
+    // Return 0 if both methods fail
+    return BigInt(0)
+}
+
 // State reducer
 function balanceReducer(state: State, action: Action): State {
     switch (action.type) {
@@ -107,30 +243,48 @@ export const useWalletBalance = () => {
 
     // Local balance fetching logic
     const fetchLocalBalance = useCallback(async (): Promise<number> => {
+        console.log('fetchLocalBalance')
+
         // Double-check wallet connection before making request
-        if (!wallet?.publicKey || !wallet?.connected) {
+        if (!account?.address) {
             return 0
         }
 
         try {
-            const records = await wallet.requestRecordPlaintexts?.('credits.aleo')
-
-            if (!records || records.length === 0) {
-                console.info('No records found for local balance')
-                return 0
+            if (!account.network) {
+                throw new Error('Network not specified in account')
             }
 
-            const totalMicrocredits = records.reduce((sum, record) => {
-                return sum + BigInt(record?.microcredits || 0)
-            }, BigInt(0))
+            // Convert account.network to AleoChainId
+            // Need to handle the case where account.network might not match AleoChainId
+            let chainId: AleoChainId
 
-            return Number(totalMicrocredits) / 1_000_000
+            // Convert the network string to string for comparison
+            const networkStr = String(account.network)
+
+            console.log('networkStr', networkStr)
+
+            if (networkStr === 'AleoTestnet') {
+                chainId = AleoChainId.AleoTestnet
+            } else if (networkStr === 'Localnet') {
+                chainId = AleoChainId.Localnet
+            } else {
+                // Default to testnetbeta if no match
+                chainId = AleoChainId.AleoTestnet
+                console.warn(`Network "${networkStr}" not recognized, using TestnetBeta as default`)
+            }
+
+            const balance = await getPublicBalance(chainId, account.address, 'credits.aleo')
+            console.log('balance', balance)
+
+            // Convert from bigint to number (with proper scaling)
+            return Number(balance) / 1_000_000
         } catch (error) {
             console.error('Error fetching local balance:', error)
             // Return 0 instead of throwing to handle wallet SDK errors gracefully
             return 0
         }
-    }, [wallet])
+    }, [account])
 
     // Testnet balance fetching logic with better error handling
     const fetchTestnetBalance = useCallback(async (): Promise<number> => {
