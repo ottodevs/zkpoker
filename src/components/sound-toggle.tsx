@@ -1,8 +1,9 @@
 'use client'
 
 import { useSound } from '@/components/providers/sound-provider'
-import Image from 'next/image'
-import { useEffect, useRef, useState } from 'react'
+import { ControlButton } from '@/components/ui/control-button'
+import { Music, Volume2, VolumeX } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 export default function SoundToggle() {
     const { isMuted, isMusicEnabled, musicVolume, sfxVolume, toggleMute, toggleMusic, setMusicVolume, setSfxVolume } =
@@ -44,19 +45,13 @@ export default function SoundToggle() {
         setSfxVolume(value)
     }
 
+    const IconComponent = useMemo(() => (isMuted ? VolumeX : Volume2), [isMuted])
+
     return (
         <div className='relative' ref={dropdownRef}>
-            <button
-                onClick={toggleDropdown}
-                className='flex size-10 cursor-pointer items-center justify-center rounded-full transition-colors'
-                aria-label='Sound settings'>
-                <Image
-                    src={`/images/icons/volume-${isMuted ? 'mute' : 'up'}.svg`}
-                    alt={isMuted ? 'Sound muted' : 'Sound on'}
-                    width={24}
-                    height={24}
-                />
-            </button>
+            <ControlButton variant='bordered' onClick={toggleDropdown} aria-label='Sound settings'>
+                <IconComponent className='size-4' />
+            </ControlButton>
 
             {/* Dropdown Menu */}
             {isDropdownOpen && (
@@ -72,7 +67,10 @@ export default function SoundToggle() {
 
                     {/* Music Toggle */}
                     <div className='mb-4 flex items-center justify-between'>
-                        <span className='text-xs text-white'>Background Music</span>
+                        <div className='flex items-center gap-2'>
+                            <Music className='h-4 w-4 text-[#4df0b4]/70' />
+                            <span className='text-xs text-white'>Background Music</span>
+                        </div>
                         <button
                             onClick={toggleMusic}
                             className={`rounded px-2 py-1 text-xs text-white ${
