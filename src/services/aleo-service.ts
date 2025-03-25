@@ -15,12 +15,12 @@ const logInfo = (message: string) => console.log(`ℹ️ [Aleo-Info] ${message}`
 const logAction = (action: string, message: string) => console.log(`🎮 [Aleo-${action}] ${message}`)
 
 // Program name
-const PROGRAM_NAME = 'mental_poker_trifecta.aleo'
+export const PROGRAM_NAME = 'mental_poker_trifecta.aleo'
 
 // Environment settings
-const ENDPOINTS = {
+export const ENDPOINTS = {
     local: 'http://localhost:3030',
-    testnet: 'https://api.explorer.aleo.org/v1',
+    testnet: 'https://api.explorer.provable.com/v1',
 }
 
 // Initialize Aleo

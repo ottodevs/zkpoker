@@ -1,3 +1,4 @@
+import { ENDPOINTS, PROGRAM_NAME } from '@/services/aleo-service'
 import {
     Account,
     AleoKeyProvider,
@@ -14,13 +15,6 @@ const logError = (message: string, error?: Error | unknown) =>
     console.error(`❌ [Worker-Error] ${message}`, error || '')
 const logInfo = (message: string) => console.log(`ℹ️ [Worker-Info] ${message}`)
 const logAction = (action: string, message: string) => console.log(`🎮 [Worker-${action}] ${message}`)
-
-// Program and network configuration
-const PROGRAM_NAME = 'mental_poker_trifecta.aleo'
-const ENDPOINTS = {
-    local: 'http://localhost:3030',
-    testnet: 'https://api.explorer.aleo.org/v1',
-}
 
 // Default network (will be configurable through messages)
 let currentNetwork: 'local' | 'testnet' = 'local'
