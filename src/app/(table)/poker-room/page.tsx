@@ -2339,7 +2339,7 @@ function PokerRoomContent() {
         <div
             className='relative min-h-screen w-full overflow-hidden'
             style={{
-                backgroundImage: "url('/images/lobby/pokerback-ground.png')",
+                backgroundImage: "url('/images/lobby/poker-background.png')",
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
                 backgroundRepeat: 'no-repeat',
