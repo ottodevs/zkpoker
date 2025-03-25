@@ -21,6 +21,9 @@ importers:
       '@demox-labs/aleo-wallet-adapter-reactui':
         specifier: 0.0.35
         version: 0.0.35(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
+      '@puzzlehq/sdk':
+        specifier: 1.0.3
+        version: 1.0.3(@types/react@19.0.12)(buffer@6.0.3)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
       '@puzzlehq/sdk-core':
         specifier: 1.0.3
         version: 1.0.3(buffer@6.0.3)

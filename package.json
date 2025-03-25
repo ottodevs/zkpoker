@@ -13,6 +13,7 @@
         "@demox-labs/aleo-wallet-adapter-base": "0.0.22",
         "@demox-labs/aleo-wallet-adapter-react": "0.0.21",
         "@demox-labs/aleo-wallet-adapter-reactui": "0.0.35",
+        "@puzzlehq/sdk": "1.0.3",
         "@puzzlehq/sdk-core": "1.0.3",
         "@radix-ui/react-dialog": "1.1.6",
         "@radix-ui/react-dropdown-menu": "2.1.6",
