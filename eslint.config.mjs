@@ -25,8 +25,8 @@ const eslintConfig = [
                 },
             ],
             '@typescript-eslint/consistent-type-imports': 'warn',
-      },
-  },
+        },
+    },
 ]
 
 export default eslintConfig
