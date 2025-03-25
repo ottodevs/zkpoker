@@ -13,7 +13,7 @@ interface NetworkState {
 const REQUEST_TIMEOUT = 10000 // 10 seconds timeout
 
 export function useNetwork() {
-    const { network = 'local' } = usePokerWorker() || {}
+    const { network = 'testnet' } = usePokerWorker() || {}
     const [state, setState] = useState<NetworkState>({
         blockHeight: 0,
         timeSinceBlock: 'No blocks yet',

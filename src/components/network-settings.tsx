@@ -156,16 +156,16 @@ export default function NetworkSettings() {
                 <DropdownMenuSeparator className='bg-white/10' />
                 <DropdownMenuRadioGroup value={network} onValueChange={handleNetworkChange}>
                     <DropdownMenuRadioItem
-                        value='local'
-                        onSelect={(e: Event) => e.preventDefault()}
-                        className='focus:bg-white/10 focus:text-white data-[state=checked]:bg-white/5'>
-                        Local Development
-                    </DropdownMenuRadioItem>
-                    <DropdownMenuRadioItem
                         value='testnet'
                         onSelect={(e: Event) => e.preventDefault()}
                         className='focus:bg-white/10 focus:text-white data-[state=checked]:bg-white/5'>
                         Aleo Testnet
+                    </DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem
+                        value='local'
+                        onSelect={(e: Event) => e.preventDefault()}
+                        className='focus:bg-white/10 focus:text-white data-[state=checked]:bg-white/5'>
+                        Local Development
                     </DropdownMenuRadioItem>
                 </DropdownMenuRadioGroup>
                 <DropdownMenuSeparator className='bg-white/10' />

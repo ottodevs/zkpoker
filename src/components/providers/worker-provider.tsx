@@ -46,7 +46,7 @@ export function PokerWorkerProvider({ children }: { children: React.ReactNode })
         privateKey: null,
         connectionStatus: 'idle',
         error: null,
-        network: 'local',
+        network: 'testnet',
         lastGameState: null,
     })
 
