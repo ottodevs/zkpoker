@@ -1,99 +1,42 @@
 'use client'
 
 import Image from 'next/image'
+import Link from 'next/link'
 import { useState } from 'react'
 import { ConnectButton } from './connect-button'
+import GameModeToggle from './game-mode-toggle'
+import NetworkSettings from './network-settings'
 import SoundToggle from './sound-toggle'
+import WalletInfo from './wallet-info'
 
 interface HeaderProps {
     onToggleMode?: (mode: string) => void
 }
 
 export default function Header({ onToggleMode }: HeaderProps) {
-    const [mode, setMode] = useState('real') // real or free
+    const [mode, setMode] = useState('real')
 
     return (
-        <header className='flex items-center justify-between bg-[#0E1C2E] px-8 py-4'>
-            <div className='flex items-center space-x-6'>
-                {/* Settings button in frame */}
-                <div className='relative flex h-[48px] w-[48px] items-center justify-center'>
-                    <svg
-                        xmlns='http://www.w3.org/2000/svg'
-                        width='52'
-                        height='52'
-                        viewBox='0 0 52 52'
-                        fill='none'
-                        className='absolute'>
-                        <path
-                            d='M42 51H10C5.02944 51 1 46.9706 1.00001 42L1.00006 9.99998C1.00007 5.02942 5.02951 0.999996 10.0001 0.999996H42C46.9706 0.999996 51 5.02944 51 10V42C51 46.9706 46.9706 51 42 51Z'
-                            stroke='#253E5C'
-                            strokeWidth='2'
-                        />
-                    </svg>
-                    <button className='z-10'>
-                        <Image
-                            src='/images/lobby/settings-button.svg'
-                            alt='Settings'
-                            width={28}
-                            height={28}
-                            style={{ height: 'auto', width: 'auto' }}
-                        />
-                    </button>
-                </div>
-
-                {/* Real/Free mode toggle */}
-                <div className='relative inline-flex h-12 w-[178px] items-center justify-center gap-px rounded-[80px] outline-2 outline-[#243d5c]'>
-                    {/* Real Button */}
-                    <div
-                        className={`inline-flex h-12 w-[89px] cursor-pointer flex-col items-center justify-center rounded-[80px] px-4 py-3 ${mode === 'real' ? 'z-10 bg-[#0e1c2e] outline-2 outline-[#4ef0b3]' : ''}`}
-                        onClick={() => {
-                            setMode('real')
-                            if (onToggleMode) onToggleMode('real')
-                        }}>
-                        <div className='inline-flex items-center justify-start'>
-                            <div className='text-lg leading-tight font-bold text-white'>Real</div>
-                        </div>
-                    </div>
-
-                    {/* Free Button */}
-                    <div
-                        className={`inline-flex h-12 w-[89px] cursor-pointer flex-col items-center justify-center rounded-[80px] px-4 py-3 ${mode === 'free' ? 'z-10 bg-[#0e1c2e] outline-2 outline-[#4ef0b3]' : ''}`}
-                        onClick={() => {
-                            setMode('free')
-                            if (onToggleMode) onToggleMode('free')
-                        }}>
-                        <div className='inline-flex items-center justify-start'>
-                            <div className='text-lg leading-tight font-bold text-white'>Free</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div className='relative h-10 w-60'>
+        <header className='flex h-16 items-center justify-between bg-[#0E1C2E] px-4 md:px-6'>
+            <div className='flex items-center gap-6'>
+                <NetworkSettings />
+                <GameModeToggle
+                    mode={mode}
+                    setMode={setMode}
+                    onToggleMode={
+                        onToggleMode ??
+                        (() => {
+                            console.log('onToggleMode not provided')
+                        })
+                    }
+                />
+                <Link href='/' className='relative flex h-10 w-60 items-center space-x-2'>
                     <Image src='/images/logos/top-logo.svg' alt='Mental Poker' fill />
-                </div>
+                </Link>
             </div>
-
-            <div className='flex items-center space-x-4'>
-                {/* Sound Toggle component in frame */}
-                <div className='relative flex h-[48px] w-[48px] items-center justify-center'>
-                    <svg
-                        xmlns='http://www.w3.org/2000/svg'
-                        width='52'
-                        height='52'
-                        viewBox='0 0 52 52'
-                        fill='none'
-                        className='absolute'>
-                        <path
-                            d='M42 51H10C5.02944 51 1 46.9706 1.00001 42L1.00006 9.99998C1.00007 5.02942 5.02951 0.999996 10.0001 0.999996H42C46.9706 0.999996 51 5.02944 51 10V42C51 46.9706 46.9706 51 42 51Z'
-                            stroke='#253E5C'
-                            strokeWidth='2'
-                        />
-                    </svg>
-                    <div className='z-10'>
-                        <SoundToggle />
-                    </div>
-                </div>
-
+            <div className='flex items-center gap-6'>
+                <WalletInfo />
+                <SoundToggle />
                 <ConnectButton />
             </div>
         </header>
