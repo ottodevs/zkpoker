@@ -1,11 +1,6 @@
 import GameHeader from '@/components/table/game-header'
-import type { ReactNode } from 'react'
 
-interface TableLayoutProps {
-    children: ReactNode
-}
-
-export default function TableLayout({ children }: TableLayoutProps) {
+export default function TableLayout({ children }: React.PropsWithChildren) {
     return (
         <div className='relative flex min-h-screen flex-col overflow-hidden bg-[#0E1C2E]'>
             {/* Game header component */}
