@@ -1,5 +1,6 @@
 import { usePokerWorker } from '@/components/providers/worker-provider'
 import { useWallet } from '@demox-labs/aleo-wallet-adapter-react'
+import { useAccount } from '@puzzlehq/sdk'
 import { getBalance } from '@puzzlehq/sdk-core'
 import { useCallback, useEffect, useReducer, useRef } from 'react'
 
@@ -67,6 +68,7 @@ function balanceReducer(state: State, action: Action): State {
 
 export const useWalletBalance = () => {
     const wallet = useWallet()
+    const { account } = useAccount()
     const { network } = usePokerWorker()
     const [state, dispatch] = useReducer(balanceReducer, initialState)
     const fetchingRef = useRef(false)
@@ -133,7 +135,7 @@ export const useWalletBalance = () => {
     // Testnet balance fetching logic with better error handling
     const fetchTestnetBalance = useCallback(async (): Promise<number> => {
         // Double-check wallet connection before making request
-        if (!wallet?.publicKey || !wallet?.connected) {
+        if (!account?.address) {
             return 0
         }
 
@@ -167,7 +169,7 @@ export const useWalletBalance = () => {
 
         try {
             // Use our safe wrapper function
-            const tokens = await safeGetBalance(wallet.publicKey)
+            const tokens = await safeGetBalance(account?.address)
 
             const aleoCreditToken = tokens.balances.find(
                 (token: TokenBalance) => token?.programId === 'credits.aleo' && token?.network === 'AleoTestnet',
@@ -184,7 +186,7 @@ export const useWalletBalance = () => {
             console.log('Unhandled error in fetchTestnetBalance:', error)
             return 0
         }
-    }, [wallet?.publicKey, wallet?.connected])
+    }, [account])
 
     // Main fetch balance function
     const fetchBalance = useCallback(async () => {
