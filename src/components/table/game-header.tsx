@@ -1,8 +1,7 @@
 import NetworkSettings from '@/components/network-settings'
 import SoundToggle from '@/components/sound-toggle'
-import { ControlButton } from '@/components/ui/control-button'
 import WalletInfo from '@/components/wallet-info'
-import { ArrowLeftSquare, Blinds, Users } from 'lucide-react'
+import { Blinds, Users } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 
@@ -47,10 +46,6 @@ export default function GameHeader({ gameInfo }: GameHeaderProps) {
                 <WalletInfo />
                 <NetworkSettings />
                 <SoundToggle />
-                <ControlButton variant='bordered' onClick={() => (window.location.href = '/')}>
-                    <ArrowLeftSquare className='size-4 text-white/80' />
-                    <span className='text-sm font-medium text-white'>Leave</span>
-                </ControlButton>
             </div>
         </header>
     )
