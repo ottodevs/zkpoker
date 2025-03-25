@@ -8,6 +8,7 @@ import dynamic from 'next/dynamic'
 import { useMemo } from 'react'
 
 import '@demox-labs/aleo-wallet-adapter-reactui/styles.css'
+import { PuzzleWalletProvider } from '@puzzlehq/sdk'
 import { PokerWorkerProvider } from './providers/worker-provider'
 
 // Dynamically import SoundProvider with SSR disabled to avoid audio initialization issues
@@ -34,16 +35,18 @@ export default function Providers({ children }: { children: React.ReactNode }) {
 
     return (
         <PokerWorkerProvider>
-            <WalletProvider
-                wallets={wallets}
-                decryptPermission={DecryptPermission.AutoDecrypt}
-                programs={['credits.aleo']}
-                network={'testnetbeta' as WalletAdapterNetwork}
-                autoConnect>
-                <WalletModalProvider>
-                    <SoundProvider>{children}</SoundProvider>
-                </WalletModalProvider>
-            </WalletProvider>
+            <PuzzleWalletProvider>
+                <WalletProvider
+                    wallets={wallets}
+                    decryptPermission={DecryptPermission.AutoDecrypt}
+                    programs={['credits.aleo']}
+                    network={'testnetbeta' as WalletAdapterNetwork}
+                    autoConnect>
+                    <WalletModalProvider>
+                        <SoundProvider>{children}</SoundProvider>
+                    </WalletModalProvider>
+                </WalletProvider>
+            </PuzzleWalletProvider>
         </PokerWorkerProvider>
     )
 }
