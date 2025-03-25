@@ -20,12 +20,6 @@ export default function HomePage() {
                         <span className='absolute inset-0 translate-y-full bg-gradient-to-b from-[#27d89e] to-[#25976c] transition-transform duration-300 group-hover:translate-y-0' />
                         <span className='relative'>Enter Lobby</span>
                     </Link>
-
-                    <Link
-                        href='/dev'
-                        className='rounded-lg border border-white/30 bg-white/10 px-8 py-3 text-lg font-bold text-white backdrop-blur-sm transition-all hover:bg-white/20 active:translate-y-1'>
-                        Dev Demo
-                    </Link>
                 </div>
             </div>
         </main>
