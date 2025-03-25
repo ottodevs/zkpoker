@@ -61,7 +61,7 @@ export function PokerWorkerProvider({ children }: { children: React.ReactNode })
             workerRef.current = new Worker(new URL('@/lib/workers/poker-worker.ts', import.meta.url))
 
             // Set up message handler
-            workerRef.current.onmessage = event => {
+            workerRef.current.onmessage = (event: MessageEvent) => {
                 const { type, result } = event.data
 
                 switch (type) {
@@ -246,18 +246,23 @@ export function PokerWorkerProvider({ children }: { children: React.ReactNode })
 
     // Set network
     const setNetwork = useCallback((network: Network) => {
-        if (!workerRef.current) return
+        console.log(`Setting network to ${network}`)
 
-        workerRef.current.postMessage({
-            action: 'set_network',
-            data: { network },
-        })
+        setState(prev => ({ ...prev, network }))
+
+        if (workerRef.current) {
+            workerRef.current.postMessage({
+                action: 'set_network',
+                data: { network },
+            })
+        }
     }, [])
 
     // Initialize on mount
     useEffect(() => {
         initializeWorker()
 
+        // Cleanup worker on unmount
         return () => {
             if (workerRef.current) {
                 workerRef.current.terminate()
@@ -281,7 +286,7 @@ export function PokerWorkerProvider({ children }: { children: React.ReactNode })
     return <PokerWorkerContext.Provider value={value}>{children}</PokerWorkerContext.Provider>
 }
 
-// Custom hook
+// Context hook
 export function usePokerWorker() {
     const context = useContext(PokerWorkerContext)
     if (!context) {
